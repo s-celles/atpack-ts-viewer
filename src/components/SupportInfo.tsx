@@ -38,43 +38,10 @@ export const SupportInfo: React.FC<SupportInfoProps> = ({ device }) => {
           throw new Error('AtPack ZIP content not available');
         }
         
-        // Try multiple possible paths for the device
-        const possiblePaths = [
-          supportFileName, // xc8/docs/chips/16f876a.html
-          `xc8/docs/chips/${deviceName}.html`, // with original name (pic16f876a)
-          `xc8\\docs\\chips\\${cleanDeviceName}.html`, // Windows path separators
-          supportFileName.replace(/\//g, '\\'), // Convert to Windows paths
-          `Microchip.PIC16Fxxx_DFP.1.7.162_dir_atpack/${supportFileName}`, // With directory prefix
-        ];
-        
-        let file = null;
-        let foundPath = '';
-        
-        for (const path of possiblePaths) {
-          if (zipContent.files[path]) {
-            file = zipContent.files[path];
-            foundPath = path;
-            break;
-          }
-        }
-        
-        // If not found, try to find any file containing the device name
+        // Find the support HTML file in the ZIP
+        const file = zipContent.files[supportFileName];
         if (!file) {
-          const allFiles = Object.keys(zipContent.files);
-          const deviceFiles = allFiles.filter(path => 
-            path.toLowerCase().includes(cleanDeviceName) && 
-            path.endsWith('.html') &&
-            path.includes('xc8/docs/chips')
-          );
-          
-          if (deviceFiles.length > 0) {
-            foundPath = deviceFiles[0];
-            file = zipContent.files[foundPath];
-          }
-        }
-        
-        if (!file) {
-          throw new Error(`Support file not found for device ${deviceName}`);
+          throw new Error(`Support file not found: ${supportFileName}`);
         }
         
         // Read the HTML content

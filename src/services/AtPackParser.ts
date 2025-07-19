@@ -56,6 +56,9 @@ export class AtPackParser extends BaseParser {
       // Extract basic data from .pdsc
       const atpack = this.pdscParser.extractAtPackData(xmlDoc);
       
+      // Store ZIP content for later access to raw files
+      atpack.zipContent = zipContent;
+      
       // Enrich data with device-specific files (.atdf for AVR, .PIC for PIC)
       await this.enrichWithDeviceData(atpack, zipContent);
       

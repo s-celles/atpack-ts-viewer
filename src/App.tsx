@@ -10,12 +10,13 @@ import { About } from './components/About';
 import { ClockConfigurator } from './components/ClockConfigurator';
 import { ElectricalParametersConfigurator } from './components/ElectricalParametersConfigurator';
 import { AdvancedPropertiesConfigurator } from './components/AdvancedPropertiesConfigurator';
+import { SupportInfo } from './components/SupportInfo';
 import { FamilyIndicatorTest } from './components/FamilyIndicatorTest';
 import { isDevelopment } from './utils/environment';
 
 export const App: React.FC = () => {
   const { selectedDevice, selectedAtPack } = useAtPackStore();
-  const [activeTab, setActiveTab] = useState<'loading' | 'device' | 'modules' | 'pinouts' | 'packages' | 'clock' | 'electrical' | 'advanced' | 'others' | 'about' | 'debug' | 'test'>('loading');
+  const [activeTab, setActiveTab] = useState<'loading' | 'device' | 'modules' | 'pinouts' | 'packages' | 'clock' | 'electrical' | 'advanced' | 'support' | 'others' | 'about' | 'debug' | 'test'>('loading');
   const [filters, setFilters] = useState<DeviceDisplayFilters>({
     documentation: true,
     variants: true,
@@ -214,6 +215,21 @@ export const App: React.FC = () => {
             }}
           >
             🔍 Advanced Properties
+          </button>
+          <button
+            onClick={() => handleTabClick('support')}
+            style={{
+              padding: '8px 16px',
+              border: 'none',
+              borderBottom: activeTab === 'support' ? '2px solid #007acc' : '2px solid transparent',
+              background: 'none',
+              color: activeTab === 'support' ? '#007acc' : '#666',
+              fontWeight: activeTab === 'support' ? 'bold' : 'normal',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}
+          >
+            📄 Support Info
           </button>
           <button
             onClick={() => handleTabClick('others')}
@@ -501,6 +517,24 @@ export const App: React.FC = () => {
               padding: '20px', 
               textAlign: 'center', 
               color: '#666',
+              border: '1px dashed #ccc',
+              marginTop: '20px'
+            }}>
+              Please select a device in the Loading tab first
+            </div>
+          )}
+        </div>
+      )}
+      
+      {activeTab === 'support' && (
+        <div>
+          {selectedDevice ? (
+            <SupportInfo device={selectedDevice} />
+          ) : (
+            <div style={{ 
+              padding: '20px', 
+              textAlign: 'center', 
+              color: '#666', 
               border: '1px dashed #ccc',
               marginTop: '20px'
             }}>

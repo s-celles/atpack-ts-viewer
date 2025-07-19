@@ -1,4 +1,5 @@
 // Types for AtPack data
+import JSZip from 'jszip';
 
 export const DeviceFamily = {
   ATMEL: 'ATMEL' as const,
@@ -12,6 +13,7 @@ export interface AtPack {
   metadata: AtPackMetadata;
   devices: AtPackDevice[];
   version: string;
+  zipContent?: JSZip; // Optional ZIP content for accessing raw files
 }
 
 export interface AtPackMetadata {

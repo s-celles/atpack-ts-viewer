@@ -41,6 +41,11 @@ build/Release
 node_modules/
 jspm_packages/
 
+# Dist & .local
+dist
+dist-ssr
+*.local
+
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 
@@ -137,3 +142,17 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# public
+public/atpacks/*atpack
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

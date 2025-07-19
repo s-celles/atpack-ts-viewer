@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Styles for simple interface like the reference site */
+table {
+  border-collapse: collapse;
+}
+
+table, th, td {
+  border: 1px solid #ccc;
+}
+
+th, td {
+  padding: 4px 8px;
+  text-align: left;
+}
+
+th {
+  background-color: #f0f0f0;
+}
+
+.at {
+  background-color: #f0f0f0;
+  font-weight: bold;
+}
+
+.ar {
+  text-align: right;
+}
+
+.al {
+  text-align: left;
+}
+
+select, input[type="text"], input[type="file"] {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+#avrdevice {
+  margin-top: 20px;
+}
+
+#avrdevice td {
+  vertical-align: top;
+}
+
+.memoriesgen td, .variantsgen td, .modulesgen td, .booksgen td {
+  padding: 2px 4px;
+}
+
+.showpart {
+  margin-right: 4px;
+}

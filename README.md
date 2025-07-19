@@ -1,6 +1,6 @@
 # AtPack viewer
 
-Atmel/Microchip's AtPack parser/viewer, developed with React and
+Atmel/Microchip's AtPack parser/viewer, developed with Reac, TypeScript, Vite, Tailwind CSS, Zustand...
 
 ### Package Drawing Scale
 

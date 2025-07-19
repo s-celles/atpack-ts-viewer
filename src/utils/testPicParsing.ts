@@ -1,4 +1,5 @@
 import { PicParser } from '../services/parsers/PicParser';
+import { PicPinoutParser } from '../services/parsers/PicPinoutParser';
 import { PdscParser } from '../services/parsers/PdscParser';
 import type { AtPackDevice } from '../types/atpack';
 
@@ -32,6 +33,11 @@ export const testPicParsing = async (): Promise<AtPackDevice | null> => {
     const picParser = new PicParser();
     const deviceData = picParser.parseDeviceData(xmlDoc, 'PIC16F876A');
     
+    // Parse pinouts
+    const pinoutParser = new PicPinoutParser();
+    const pinouts = pinoutParser.parsePinouts(xmlDoc, 'PIC16F876A');
+    deviceData.pinouts = pinouts;
+    
     console.log('=== Parsed Device Data ===');
     console.log('Name:', deviceData.name);
     console.log('Family:', deviceData.family);
@@ -39,6 +45,7 @@ export const testPicParsing = async (): Promise<AtPackDevice | null> => {
     console.log('Device Family:', deviceData.deviceFamily);
     console.log('Memory Layout:', deviceData.memory);
     console.log('Configuration Words:', deviceData.fuses?.length || 0);
+    console.log('Pinouts:', deviceData.pinouts?.length || 0);
     
     if (deviceData.fuses && deviceData.fuses.length > 0) {
       console.log('=== First Configuration Word ===');
@@ -60,6 +67,22 @@ export const testPicParsing = async (): Promise<AtPackDevice | null> => {
           field.values.forEach((value, vIdx) => {
             console.log(`      ${vIdx}: ${value.name} = 0x${value.value.toString(16)} (${value.description})`);
           });
+        }
+      });
+    }
+    
+    if (deviceData.pinouts && deviceData.pinouts.length > 0) {
+      console.log('=== Pinout Information ===');
+      const firstPinout = deviceData.pinouts[0];
+      console.log('Pinout Name:', firstPinout.name);
+      console.log('Pinout Caption:', firstPinout.caption);
+      console.log('Pin Count:', firstPinout.pins.length);
+      
+      // Show first few pins
+      firstPinout.pins.slice(0, 10).forEach((pin) => {
+        console.log(`  Pin ${pin.position}: ${pin.pad}`);
+        if (pin.functions.length > 0) {
+          console.log(`    Functions: ${pin.functions.map(f => f.group).join(', ')}`);
         }
       });
     }

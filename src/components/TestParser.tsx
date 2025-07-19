@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AtPackParser } from '../services/AtPackParser';
 import { testPicParsing, testPicPdscParsing } from '../utils/testPicParsing';
+import { testPicPinoutParsing } from '../utils/testPicPinoutParsing';
 import type { AtPack } from '../types/atpack';
 
 export const TestParser: React.FC = () => {
@@ -75,6 +76,70 @@ export const TestParser: React.FC = () => {
     }
   };
 
+  const testPicAtPack = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log('Test: Loading PIC pack from public/atpacks...');
+      const response = await fetch('/atpacks/Microchip.PIC16Fxxx_DFP.1.7.162_dir_atpack.zip');
+      if (!response.ok) {
+        // If ZIP doesn't exist, try creating a mock file from the directory
+        console.log('ZIP not found, attempting to load individual PIC files...');
+        const picDevice = await testPicParsing();
+        
+        if (picDevice) {
+          const mockAtPack: AtPack = {
+            metadata: {
+              name: 'Microchip PIC16F Package',
+              description: 'Test package for PIC16F devices with pinouts',
+              vendor: 'Microchip',
+              url: ''
+            },
+            devices: [picDevice],
+            version: '1.7.162'
+          };
+          
+          console.log('Created mock PIC AtPack with pinouts:', picDevice.pinouts?.length || 0);
+          setAtpack(mockAtPack);
+          return;
+        }
+      } else {
+        const blob = await response.blob();
+        const file = new File([blob], 'Microchip.PIC16Fxxx_DFP.1.7.162.atpack', { type: 'application/zip' });
+        
+        console.log('Test: Parsing PIC .atpack file (with PIC enrichment)...');
+        const parser = new AtPackParser();
+        const parsedAtPack = await parser.parseFile(file);
+        
+        console.log('Test: PIC AtPack parsed successfully:', parsedAtPack);
+        console.log('Test: First device pinouts:', parsedAtPack.devices[0]?.pinouts?.length || 0);
+        setAtpack(parsedAtPack);
+      }
+    } catch (err) {
+      console.error('Test: PIC AtPack Error:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const testPicPinouts = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log('Testing PIC pinout parsing...');
+      const pinouts = await testPicPinoutParsing();
+      console.log('PIC pinout test completed:', pinouts);
+    } catch (err) {
+      console.error('PIC pinout test failed:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     // Auto-test on load
     testLocalAtPack();
@@ -105,6 +170,12 @@ export const TestParser: React.FC = () => {
           <button onClick={testPicParsers} style={{ padding: '10px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px' }}>
             Test PIC Parsing (16F876A)
           </button>
+          <button onClick={testPicAtPack} style={{ padding: '10px', backgroundColor: '#6f42c1', color: 'white', border: 'none', borderRadius: '4px' }}>
+            Test Full PIC AtPack
+          </button>
+          <button onClick={testPicPinouts} style={{ padding: '10px', backgroundColor: '#17a2b8', color: 'white', border: 'none', borderRadius: '4px' }}>
+            Test PIC Pinouts Only
+          </button>
         </div>
       </div>
     );
@@ -128,6 +199,7 @@ export const TestParser: React.FC = () => {
           <p><strong>Modules:</strong> {firstDevice.modules.length}</p>
           <p><strong>Fuses:</strong> {firstDevice.fuses.length}</p>
           <p><strong>Signatures:</strong> {firstDevice.signatures.length}</p>
+          <p><strong>Pinouts:</strong> {firstDevice.pinouts ? firstDevice.pinouts.length : 0}</p>
           <p><strong>Variants:</strong> {firstDevice.variants.length}</p>
           
           {firstDevice.modules.length > 0 && (
@@ -150,6 +222,17 @@ export const TestParser: React.FC = () => {
                   <li key={index}>{fuse.name} - {fuse.bitfields.length} bitfields</li>
                 ))}
                 {firstDevice.fuses.length > 5 && <li>... and {firstDevice.fuses.length - 5} more</li>}
+              </ul>
+            </details>
+          )}
+          
+          {firstDevice.pinouts && firstDevice.pinouts.length > 0 && (
+            <details>
+              <summary>Pinouts</summary>
+              <ul>
+                {firstDevice.pinouts.map((pinout, index) => (
+                  <li key={index}>{pinout.caption} - {pinout.pins.length} pins</li>
+                ))}
               </ul>
             </details>
           )}

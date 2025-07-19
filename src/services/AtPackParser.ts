@@ -4,6 +4,7 @@ import { PdscParser } from './parsers/PdscParser';
 import { AtdfParser } from './parsers/AtdfParser';
 import { PeripheralParser } from './parsers/PeripheralParser';
 import { PinoutParser } from './parsers/PinoutParser';
+import { PicPinoutParser } from './parsers/PicPinoutParser';
 import { TimerParser } from './parsers/TimerParser';
 import { ClockParser } from './parsers/ClockParser';
 import { PicParser } from './parsers/PicParser';
@@ -18,6 +19,7 @@ export class AtPackParser extends BaseParser {
   private atdfParser: AtdfParser;
   private peripheralParser: PeripheralParser;
   private pinoutParser: PinoutParser;
+  private picPinoutParser: PicPinoutParser;
   private timerParser: TimerParser;
   private clockParser: ClockParser;
   private picParser: PicParser;
@@ -28,6 +30,7 @@ export class AtPackParser extends BaseParser {
     this.atdfParser = new AtdfParser();
     this.peripheralParser = new PeripheralParser();
     this.pinoutParser = new PinoutParser();
+    this.picPinoutParser = new PicPinoutParser();
     this.timerParser = new TimerParser();
     this.clockParser = new ClockParser();
     this.picParser = new PicParser();
@@ -312,10 +315,15 @@ export class AtPackParser extends BaseParser {
             // Parse PIC-specific data
             const picData = this.picParser.parseDeviceData(picDoc, device.name);
             
+            // Parse PIC pinouts
+            device.pinouts = this.picPinoutParser.parsePinouts(picDoc, device.name);
+            
             // Merge PIC data with device data
             if (picData.memory) device.memory = picData.memory;
             if (picData.fuses) device.fuses = picData.fuses;
             if (picData.signatures) device.signatures = picData.signatures;
+            
+            console.log(`  - Pinouts: ${device.pinouts.length}`);
             // Note: PIC doesn't use lockbits the same way as AVR
           } else {
             console.warn(`No PIC file found for device: ${device.name}`);

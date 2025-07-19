@@ -55,7 +55,7 @@ export const About: React.FC = () => {
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Author</h2>
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="font-medium text-gray-900">{AUTHOR}</p>
-              <p className="text-gray-600 text-sm mt-1">Professeur agrégé PRAG (Higher Education) of applied physics & Electronics Enthusiast</p>
+              <p className="text-gray-600 text-sm mt-1">Professeur agrégé PRAG (Higher Education in France) of applied physics & Electronics Enthusiast</p>
             </div>
           </div>
           

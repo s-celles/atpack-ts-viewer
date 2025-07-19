@@ -1,6 +1,8 @@
 # AtPack viewer
 
-Atmel/Microchip's AtPack parser/viewer, developed with React and### Package Drawing Scale
+Atmel/Microchip's AtPack parser/viewer, developed with React and
+
+### Package Drawing Scale
 
 The package diagrams support adjustable scaling to accommodate different screen sizes and preferences:
 

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { DeviceFamily, type AtPackDevice } from '../types/atpack';
 import { useAtPackStore } from '../stores/atpackStore';
 
@@ -16,6 +18,36 @@ export const SupportInfo: React.FC<SupportInfoProps> = ({ device }) => {
   const [error, setError] = useState<string | null>(null);
   const [activeSubTab, setActiveSubTab] = useState<'compiler' | 'include' | 'data'>('compiler');
   const { selectedAtPack } = useAtPackStore();
+
+  // Helper function to determine language for syntax highlighting
+  const getLanguageFromFilename = (filename: string): string => {
+    const extension = filename.split('.').pop()?.toLowerCase();
+    switch (extension) {
+      case 'h':
+      case 'hpp':
+        return 'c';
+      case 'c':
+      case 'cpp':
+        return 'c';
+      case 'inc':
+      case 'asm':
+      case 's':
+        return 'asm6502'; // Assembly-like syntax
+      case 'def':
+      case 'cfg':
+      case 'ini':
+        return 'ini'; // Configuration file syntax
+      case 'json':
+        return 'json';
+      case 'xml':
+        return 'xml';
+      case 'txt':
+      case 'log':
+        return 'text';
+      default:
+        return 'text';
+    }
+  };
 
   useEffect(() => {
     const loadSupportInfo = async () => {
@@ -190,19 +222,22 @@ export const SupportInfo: React.FC<SupportInfoProps> = ({ device }) => {
               {selectedFileName && selectedFileContent ? (
                 <div>
                   <h4 style={{ margin: '0 0 10px 0', color: '#007acc' }}>{selectedFileName}</h4>
-                  <pre style={{ 
-                    backgroundColor: '#f8f9fa',
-                    border: '1px solid #ddd',
-                    borderRadius: '3px',
-                    padding: '10px',
-                    fontSize: '12px',
-                    fontFamily: 'Courier New, monospace',
-                    overflow: 'auto',
-                    maxHeight: '600px',
-                    margin: 0
-                  }}>
+                  <SyntaxHighlighter
+                    language={getLanguageFromFilename(selectedFileName)}
+                    style={oneLight}
+                    customStyle={{
+                      border: '1px solid #ddd',
+                      borderRadius: '3px',
+                      fontSize: '12px',
+                      maxHeight: '600px',
+                      margin: 0,
+                      backgroundColor: '#fafafa'
+                    }}
+                    showLineNumbers={true}
+                    wrapLines={true}
+                  >
                     {selectedFileContent}
-                  </pre>
+                  </SyntaxHighlighter>
                 </div>
               ) : (
                 <div style={{ 
@@ -264,19 +299,22 @@ export const SupportInfo: React.FC<SupportInfoProps> = ({ device }) => {
               {selectedFileName && selectedFileContent ? (
                 <div>
                   <h4 style={{ margin: '0 0 10px 0', color: '#007acc' }}>{selectedFileName}</h4>
-                  <pre style={{ 
-                    backgroundColor: '#f8f9fa',
-                    border: '1px solid #ddd',
-                    borderRadius: '3px',
-                    padding: '10px',
-                    fontSize: '12px',
-                    fontFamily: 'Courier New, monospace',
-                    overflow: 'auto',
-                    maxHeight: '600px',
-                    margin: 0
-                  }}>
+                  <SyntaxHighlighter
+                    language={getLanguageFromFilename(selectedFileName)}
+                    style={oneLight}
+                    customStyle={{
+                      border: '1px solid #ddd',
+                      borderRadius: '3px',
+                      fontSize: '12px',
+                      maxHeight: '600px',
+                      margin: 0,
+                      backgroundColor: '#fafafa'
+                    }}
+                    showLineNumbers={true}
+                    wrapLines={true}
+                  >
                     {selectedFileContent}
-                  </pre>
+                  </SyntaxHighlighter>
                 </div>
               ) : (
                 <div style={{ 

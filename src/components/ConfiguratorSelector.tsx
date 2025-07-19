@@ -11,7 +11,7 @@ interface ConfiguratorSelectorProps {
 
 /**
  * Component that automatically selects the appropriate configurator 
- * based on the device family (AVR or PIC)
+ * based on the device family (ATMEL or PIC)
  */
 export const ConfiguratorSelector: React.FC<ConfiguratorSelectorProps> = ({
   device,
@@ -27,10 +27,10 @@ export const ConfiguratorSelector: React.FC<ConfiguratorSelectorProps> = ({
           <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
             <div className="flex items-center space-x-2">
               <span className="bg-green-500 text-white px-2 py-1 rounded text-sm font-bold">
-                AVR
+                ATMEL
               </span>
               <span className="text-green-800 font-medium">
-                Using AVR Fuses Configurator
+                Using ATMEL Fuses Configurator
               </span>
             </div>
           </div>
@@ -79,7 +79,7 @@ export const ConfiguratorSelector: React.FC<ConfiguratorSelectorProps> = ({
       );
 
     default:
-      // Fallback to AVR if device family is undefined (for backward compatibility)
+      // Fallback to ATMEL if device family is undefined (for backward compatibility)
       return (
         <div>
           <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -88,7 +88,7 @@ export const ConfiguratorSelector: React.FC<ConfiguratorSelectorProps> = ({
                 UNKNOWN
               </span>
               <span className="text-yellow-800 font-medium">
-                Device family unknown, defaulting to AVR configurator
+                Device family unknown, defaulting to ATMEL configurator
               </span>
             </div>
             <p className="text-yellow-700 text-sm mt-1">

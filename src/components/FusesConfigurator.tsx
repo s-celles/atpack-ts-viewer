@@ -125,7 +125,7 @@ export const FusesConfigurator: React.FC<FusesConfiguratorProps> = ({
 
   return (
     <div style={{ fontFamily: 'monospace' }}>
-      {/* Information banner about AVR fuse logic */}
+      {/* Information banner about ATMEL fuse logic */}
       <div style={{
         marginBottom: '20px',
         padding: '12px',
@@ -135,12 +135,12 @@ export const FusesConfigurator: React.FC<FusesConfiguratorProps> = ({
         fontSize: '14px',
         color: '#0c5460'
       }}>
-        <strong>ℹ️ AVR Fuse Logic:</strong> In AVR microcontrollers, fuse bits use inverted logic:
+        <strong>ℹ️ ATMEL Fuse Logic:</strong> In ATMEL microcontrollers, fuse bits use inverted logic:
         <ul style={{ margin: '8px 0 0 20px', paddingLeft: '0' }}>
           <li><strong>Bit = 0 (programmed)</strong> → Feature is <strong>enabled</strong> → Checkbox is <strong>checked</strong></li>
           <li><strong>Bit = 1 (unprogrammed)</strong> → Feature is <strong>disabled</strong> → Checkbox is <strong>unchecked</strong></li>
         </ul>
-        This inverted logic is the standard behavior for AVR fuse bits.
+        This inverted logic is the standard behavior for ATMEL fuse bits.
       </div>
       {fuses.map(fuse => (
         <div key={fuse.name} style={{ marginBottom: '20px' }}>
@@ -250,7 +250,7 @@ export const FusesConfigurator: React.FC<FusesConfiguratorProps> = ({
                     }}>                     
                       {isBooleanBitfield(bitfield) ? (
                         // Boolean bitfield: use checkbox
-                        // Note: In AVR fuses, 0 = "programmed/enabled", 1 = "unprogrammed/disabled"
+                        // Note: In ATMEL fuses, 0 = "programmed/enabled", 1 = "unprogrammed/disabled"
                         // So we invert the logic for display
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <input

@@ -100,7 +100,7 @@ export const TestParser: React.FC = () => {
         <h3>Parser Test</h3>
         <div style={{ display: 'flex', gap: '10px', flexDirection: 'column', maxWidth: '300px' }}>
           <button onClick={testLocalAtPack} style={{ padding: '10px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px' }}>
-            Test AVR AtPack (ATmega)
+            Test ATMEL AtPack (ATmega)
           </button>
           <button onClick={testPicParsers} style={{ padding: '10px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px' }}>
             Test PIC Parsing (16F876A)

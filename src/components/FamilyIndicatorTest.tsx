@@ -28,7 +28,7 @@ const getFamilyTitle = (family?: DeviceFamilyType) => {
   
   switch (family) {
     case DeviceFamily.ATMEL:
-      return 'AVR Microcontroller';
+      return 'ATMEL Microcontroller';
     case DeviceFamily.PIC:
       return 'PIC Microcontroller';
     case DeviceFamily.UNSUPPORTED:
@@ -85,7 +85,7 @@ export const FamilyIndicatorTest: React.FC = () => {
       <div style={{ marginTop: '15px', fontSize: '12px', color: '#666' }}>
         <p><strong>Legend:</strong></p>
         <ul style={{ margin: '5px 0', paddingLeft: '20px' }}>
-          <li>🟢 AVR Microcontrollers (Atmel/Microchip AVR)</li>
+          <li>🟢 ATMEL Microcontrollers (Atmel/Microchip AVR)</li>
           <li>🔵 PIC Microcontrollers (Microchip PIC)</li>
           <li>⚪ Unsupported Family</li>
           <li>❓ Unknown/Undefined Family</li>

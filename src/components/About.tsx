@@ -50,7 +50,7 @@ export const About: React.FC = () => {
         </div>
 
         {/* Author & License */}
-        <div className="grid md:grid-cols-2 gap-8 mb-8">
+        <div className="grid md:grid-cols-3 gap-8 mb-8">
           <div>
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Author</h2>
             <div className="bg-gray-50 rounded-lg p-4">
@@ -64,6 +64,22 @@ export const About: React.FC = () => {
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="font-medium text-gray-900">Apache 2.0</p>
               <p className="text-gray-600 text-sm mt-1">Open source software, free to use and modify</p>
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Source Code</h2>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <p className="font-medium text-gray-900 mb-2">GitHub Repository</p>
+              <a 
+                href="https://github.com/s-celles/atpack-ts-viewer" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 text-sm underline"
+              >
+                https://github.com/s-celles/atpack-ts-viewer
+              </a>
+              <p className="text-gray-600 text-sm mt-2">View source, report issues, contribute</p>
             </div>
           </div>
         </div>

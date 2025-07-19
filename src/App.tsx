@@ -10,6 +10,7 @@ import { About } from './components/About';
 import { ClockConfigurator } from './components/ClockConfigurator';
 import { ElectricalParametersConfigurator } from './components/ElectricalParametersConfigurator';
 import { AdvancedPropertiesConfigurator } from './components/AdvancedPropertiesConfigurator';
+import { FamilyIndicatorTest } from './components/FamilyIndicatorTest';
 import { isDevelopment } from './utils/environment';
 
 export const App: React.FC = () => {
@@ -517,6 +518,7 @@ export const App: React.FC = () => {
       
       {activeTab === 'test' && isDevelopment() && (
         <div>
+          <FamilyIndicatorTest />
           <TestParser />
         </div>
       )}

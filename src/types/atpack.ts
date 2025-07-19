@@ -1,4 +1,13 @@
 // Types for AtPack data
+
+export const DeviceFamily = {
+  ATMEL: 'ATMEL' as const,
+  PIC: 'PIC' as const,
+  UNSUPPORTED: 'UNSUPPORTED' as const
+} as const;
+
+export type DeviceFamilyType = typeof DeviceFamily[keyof typeof DeviceFamily];
+
 export interface AtPack {
   metadata: AtPackMetadata;
   devices: AtPackDevice[];
@@ -16,6 +25,7 @@ export interface AtPackDevice {
   name: string;
   family: string;
   architecture: string;
+  deviceFamily?: DeviceFamilyType; // Add device family detection
   signatures: DeviceSignature[];
   memory: MemoryLayout;
   fuses: FuseConfig[];

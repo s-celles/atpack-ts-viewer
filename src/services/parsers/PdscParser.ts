@@ -1,5 +1,6 @@
 import { BaseParser } from './BaseParser';
 import type { AtPack, AtPackDevice } from '../../types/atpack';
+import { DeviceFamily } from '../../types/atpack';
 
 /**
  * Parser for PDSC files (main package structure)
@@ -52,10 +53,14 @@ export class PdscParser extends BaseParser {
     const processorElement = element.querySelector('processor');
     const architecture = processorElement?.getAttribute('Dcore') || '';
     
+    // Detect device family based on various indicators
+    const deviceFamily = this.detectDeviceFamily(family, architecture, element);
+    
     return {
       name: this.getAttr(element, 'Dname'),
       family: family,
       architecture: architecture,
+      deviceFamily: deviceFamily,
       signatures: [], // Will be populated from ATDF files
       memory: this.parseMemoryLayout(element),
       fuses: [], // Will be populated from ATDF files
@@ -244,5 +249,65 @@ export class PdscParser extends BaseParser {
       protocols: protocols.length > 0 ? protocols : ['ISP'],
       pins: [],
     };
+  }
+
+  /**
+   * Detect device family based on various indicators
+   */
+  private detectDeviceFamily(family: string, architecture: string, element: Element): typeof DeviceFamily[keyof typeof DeviceFamily] {
+    // Check family name patterns
+    if (family.toLowerCase().includes('pic')) {
+      return DeviceFamily.PIC;
+    }
+    
+    if (family.toLowerCase().includes('avr') || 
+        family.toLowerCase().includes('atmega') ||
+        family.toLowerCase().includes('attiny') ||
+        family.toLowerCase().includes('at90')) {
+      return DeviceFamily.ATMEL;
+    }
+    
+    // Check architecture patterns
+    if (architecture.toLowerCase().includes('avr')) {
+      return DeviceFamily.ATMEL;
+    }
+    
+    if (architecture.toLowerCase().includes('pic') ||
+        architecture.toLowerCase().includes('16c') ||
+        architecture.toLowerCase().includes('16xxxx')) {
+      return DeviceFamily.PIC;
+    }
+    
+    // Check device name patterns
+    const deviceName = this.getAttr(element, 'Dname').toLowerCase();
+    if (deviceName.startsWith('at') || deviceName.includes('mega') || deviceName.includes('tiny')) {
+      return DeviceFamily.ATMEL;
+    }
+    
+    if (deviceName.startsWith('pic')) {
+      return DeviceFamily.PIC;
+    }
+    
+    // Check vendor from root package element
+    const packageElement = element.ownerDocument.querySelector('package');
+    const vendor = packageElement?.getAttribute('vendor')?.toLowerCase() || '';
+    
+    if (vendor.includes('atmel')) {
+      return DeviceFamily.ATMEL;
+    }
+    
+    if (vendor.includes('microchip')) {
+      // Microchip makes both AVR (acquired from Atmel) and PIC
+      // Default to PIC for Microchip unless other indicators suggest AVR
+      if (family.toLowerCase().includes('avr') || 
+          architecture.toLowerCase().includes('avr') ||
+          deviceName.startsWith('at')) {
+        return DeviceFamily.ATMEL;
+      }
+      return DeviceFamily.PIC;
+    }
+    
+    // Default to unsupported if we can't determine
+    return DeviceFamily.UNSUPPORTED;
   }
 }

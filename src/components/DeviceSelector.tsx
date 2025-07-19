@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAtPackStore } from '../stores/atpackStore';
+import { DeviceFamily } from '../types/atpack';
 
 export const DeviceSelector: React.FC = () => {
   const { selectedAtPack, selectDevice } = useAtPackStore();
@@ -43,9 +44,13 @@ export const DeviceSelector: React.FC = () => {
             <option 
               key={index} 
               value={index.toString()}
-              title={`${device.family} Microcontroller, ${device.memory.flash.size / 1024}KB Flash, ${device.variants.length} variant(s), ${device.modules.length} modules, ${device.fuses.length} fuses`}
+              title={`${device.deviceFamily || 'Unknown'} - ${device.family} Microcontroller, ${device.memory.flash.size / 1024}KB Flash, ${device.variants.length} variant(s), ${device.modules.length} modules, ${device.fuses.length} fuses`}
             >
-              {device.name} - {device.family}, {Math.round(device.memory.flash.size / 1024)}KB Flash, {device.variants.length} var, {device.modules.length} mod, {device.fuses.length} fuses
+              {device.deviceFamily && (
+                device.deviceFamily === DeviceFamily.ATMEL ? '🟢' : 
+                device.deviceFamily === DeviceFamily.PIC ? '🔵' : 
+                '⚪'
+              )} {device.name} - {device.family}, {Math.round(device.memory.flash.size / 1024)}KB Flash, {device.variants.length} var, {device.modules.length} mod, {device.fuses.length} fuses
             </option>
           ))}
         </select>

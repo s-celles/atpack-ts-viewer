@@ -6,8 +6,9 @@ import { PeripheralParser } from './parsers/PeripheralParser';
 import { PinoutParser } from './parsers/PinoutParser';
 import { TimerParser } from './parsers/TimerParser';
 import { ClockParser } from './parsers/ClockParser';
-import type { AtPack, AtPackDevice } from '../types/atpack';
-import { AtPackParseError } from '../types/atpack';
+import { PicParser } from './parsers/PicParser';
+import type { AtPack } from '../types/atpack';
+import { AtPackParseError, DeviceFamily } from '../types/atpack';
 
 /**
  * Main AtPack parser that coordinates all specialized parsers
@@ -19,6 +20,7 @@ export class AtPackParser extends BaseParser {
   private pinoutParser: PinoutParser;
   private timerParser: TimerParser;
   private clockParser: ClockParser;
+  private picParser: PicParser;
   
   constructor() {
     super();
@@ -28,6 +30,7 @@ export class AtPackParser extends BaseParser {
     this.pinoutParser = new PinoutParser();
     this.timerParser = new TimerParser();
     this.clockParser = new ClockParser();
+    this.picParser = new PicParser();
   }
 
   /**
@@ -50,8 +53,8 @@ export class AtPackParser extends BaseParser {
       // Extract basic data from .pdsc
       const atpack = this.pdscParser.extractAtPackData(xmlDoc);
       
-      // Enrich data with .atdf files
-      await this.enrichWithAtdfData(atpack, zipContent);
+      // Enrich data with device-specific files (.atdf for AVR, .PIC for PIC)
+      await this.enrichWithDeviceData(atpack, zipContent);
       
       return atpack;
     } catch (error) {
@@ -159,8 +162,8 @@ export class AtPackParser extends BaseParser {
       // Extract basic data from .pdsc
       const atpack = this.pdscParser.extractAtPackData(xmlDoc);
       
-      // Enrich data with .atdf files
-      await this.enrichWithAtdfData(atpack, zipContent);
+      // Enrich data with device-specific files (.atdf for AVR, .PIC for PIC)
+      await this.enrichWithDeviceData(atpack, zipContent);
       
       return atpack;
     } catch (error) {
@@ -227,57 +230,123 @@ export class AtPackParser extends BaseParser {
     }
   }
 
+
+
   /**
-   * Enrich AtPack data with information from ATDF files
+   * Detect device family from PDSC content
    */
-  private async enrichWithAtdfData(atpack: AtPack, zipContent: JSZip): Promise<void> {
-    for (const device of atpack.devices) {
-      await this.enrichDeviceWithAtdf(device, zipContent);
+  private detectDeviceFamily(xmlDoc: Document): typeof DeviceFamily[keyof typeof DeviceFamily] {
+    // Check vendor - Microchip typically means PIC
+    const vendorElement = xmlDoc.querySelector('vendor');
+    if (vendorElement?.textContent?.toLowerCase().includes('microchip')) {
+      return DeviceFamily.PIC;
     }
+
+    // Check package name for PIC indicators
+    const nameElement = xmlDoc.querySelector('name');
+    const nameText = nameElement?.textContent?.toLowerCase() || '';
+    if (nameText.includes('pic') || nameText.includes('dspic')) {
+      return DeviceFamily.PIC;
+    }
+
+    // Check family names in devices
+    const familyElements = xmlDoc.querySelectorAll('family');
+    for (const family of Array.from(familyElements)) {
+      const familyName = family.getAttribute('Dfamily')?.toLowerCase() || '';
+      if (familyName.includes('pic') || familyName.includes('dspic')) {
+        return DeviceFamily.PIC;
+      }
+    }
+
+    // Check device names
+    const deviceElements = xmlDoc.querySelectorAll('device');
+    for (const device of Array.from(deviceElements)) {
+      const deviceName = device.getAttribute('Dname')?.toLowerCase() || '';
+      if (deviceName.startsWith('pic') || deviceName.startsWith('dspic')) {
+        return DeviceFamily.PIC;
+      }
+    }
+
+    // Default to AVR if no PIC indicators found
+    return DeviceFamily.ATMEL;
   }
 
   /**
-   * Enrich a single device with ATDF data
+   * Find PIC file for a specific device in ZIP archive
    */
-  private async enrichDeviceWithAtdf(device: AtPackDevice, zipContent: JSZip): Promise<void> {
-    try {
-      console.log(`Searching ATDF file for device: ${device.name}`);
+  private findPicFile(zipContent: JSZip, deviceName: string): string | null {
+    // Look for exact match first
+    let picFileName = Object.keys(zipContent.files).find(fileName => 
+      fileName.includes(`${deviceName}.PIC`) && !zipContent.files[fileName].dir
+    );
+    
+    if (!picFileName) {
+      // Look for .PIC extension case-insensitively
+      picFileName = Object.keys(zipContent.files).find(fileName => 
+        fileName.toLowerCase().includes(`${deviceName.toLowerCase()}.pic`) && !zipContent.files[fileName].dir
+      );
+    }
+    
+    return picFileName || null;
+  }
+
+  /**
+   * Enrich AtPack data with device-specific files (.atdf for AVR, .PIC for PIC)
+   */
+  private async enrichWithDeviceData(atpack: AtPack, zipContent: JSZip): Promise<void> {
+    const deviceFamily = this.detectDeviceFamily(this.parseXml(await this.extractFileFromZip(zipContent, this.findPdscFile(zipContent)!)));
+    
+    for (const device of atpack.devices) {
+      // Set device family
+      device.deviceFamily = deviceFamily;
       
-      // Look for the .atdf file corresponding to the device
-      const atdfFileName = this.findAtdfFile(zipContent, device.name);
-      
-      if (!atdfFileName) {
-        console.warn(`ATDF file not found for device ${device.name}`);
-        return;
+      try {
+        if (deviceFamily === DeviceFamily.PIC) {
+          // For PIC devices, look for .PIC files
+          const picFileName = this.findPicFile(zipContent, device.name);
+          if (picFileName) {
+            console.log(`Found PIC file for ${device.name}: ${picFileName}`);
+            const picContent = await this.extractFileFromZip(zipContent, picFileName);
+            const picDoc = this.parseXml(picContent);
+            
+            // Parse PIC-specific data
+            const picData = this.picParser.parseDeviceData(picDoc, device.name);
+            
+            // Merge PIC data with device data
+            if (picData.memory) device.memory = picData.memory;
+            if (picData.fuses) device.fuses = picData.fuses;
+            if (picData.signatures) device.signatures = picData.signatures;
+            // Note: PIC doesn't use lockbits the same way as AVR
+          } else {
+            console.warn(`No PIC file found for device: ${device.name}`);
+          }
+        } else {
+          // For AVR devices, use existing ATDF parsing
+          const atdfFileName = this.findAtdfFile(zipContent, device.name);
+          if (atdfFileName) {
+            console.log(`Found ATDF file for ${device.name}: ${atdfFileName}`);
+            const atdfContent = await this.extractFileFromZip(zipContent, atdfFileName);
+            const atdfDoc = this.parseXml(atdfContent);
+            
+            // Enrich device with ATDF data
+            this.atdfParser.enrichDeviceFromAtdf(device, atdfDoc);
+            
+            // Parse additional AVR-specific data
+            device.peripherals = this.peripheralParser.parsePeripherals(atdfDoc);
+            device.pinouts = this.pinoutParser.parsePinouts(atdfDoc);
+            device.timers = this.timerParser.parseTimers(atdfDoc);
+            device.clockInfo = this.clockParser.parseClockInfo(atdfDoc);
+            
+            console.log(`  - Peripherals: ${device.peripherals.length}`);
+            console.log(`  - Pinouts: ${device.pinouts.length}`);
+            console.log(`  - Timers: ${device.timers.length}`);
+          } else {
+            console.warn(`No ATDF file found for device: ${device.name}`);
+          }
+        }
+      } catch (error) {
+        console.error(`Error parsing device-specific data for ${device.name}:`, error);
       }
-      
-      console.log(`ATDF file found: ${atdfFileName}`);
-      
-      // Extract and parse the .atdf file
-      const atdfXmlText = await this.extractFileFromZip(zipContent, atdfFileName);
-      const atdfDoc = this.parseXml(atdfXmlText);
-      
-      // Enrich device data with .atdf information using specialized parsers
-      this.atdfParser.enrichDeviceFromAtdf(device, atdfDoc);
-      
-      // Parse peripherals (register details)
-      device.peripherals = this.peripheralParser.parsePeripherals(atdfDoc);
-      console.log(`  - Peripherals: ${device.peripherals.length}`);
-      
-      // Parse pinouts and pin functions
-      device.pinouts = this.pinoutParser.parsePinouts(atdfDoc);
-      console.log(`  - Pinouts: ${device.pinouts.length}`);
-      
-      // Parse timer configurations
-      device.timers = this.timerParser.parseTimers(atdfDoc);
-      console.log(`  - Timers: ${device.timers.length}`);
-      
-      // Parse clock configuration
-      device.clockInfo = this.clockParser.parseClockInfo(atdfDoc);
-      console.log(`  - Clock sources: ${device.clockInfo.sources.length}, System prescalers: ${device.clockInfo.systemPrescalers.length}`);
-      
-    } catch (error) {
-      console.warn(`Error during device enrichment for ${device.name}:`, error);
     }
   }
 }

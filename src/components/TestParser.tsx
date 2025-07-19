@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AtPackParser } from '../services/AtPackParser';
+import { testPicParsing, testPicPdscParsing } from '../utils/testPicParsing';
 import type { AtPack } from '../types/atpack';
 
 export const TestParser: React.FC = () => {
@@ -37,6 +38,43 @@ export const TestParser: React.FC = () => {
     }
   };
 
+  const testPicParsers = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log('Testing PIC parsers...');
+      
+      // Test PDSC parsing
+      await testPicPdscParsing();
+      
+      // Test individual PIC file parsing
+      const picDevice = await testPicParsing();
+      
+      if (picDevice) {
+        // Create a mock AtPack with the PIC device
+        const mockAtPack: AtPack = {
+          metadata: {
+            name: 'Test PIC Package',
+            description: 'Test package for PIC16F876A',
+            vendor: 'Microchip',
+            url: ''
+          },
+          devices: [picDevice],
+          version: '1.0.0'
+        };
+        
+        setAtpack(mockAtPack);
+      }
+      
+    } catch (err) {
+      console.error('PIC parsing test failed:', err);
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     // Auto-test on load
     testLocalAtPack();
@@ -60,7 +98,14 @@ export const TestParser: React.FC = () => {
     return (
       <div>
         <h3>Parser Test</h3>
-        <button onClick={testLocalAtPack}>Test Local AtPack</button>
+        <div style={{ display: 'flex', gap: '10px', flexDirection: 'column', maxWidth: '300px' }}>
+          <button onClick={testLocalAtPack} style={{ padding: '10px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px' }}>
+            Test AVR AtPack (ATmega)
+          </button>
+          <button onClick={testPicParsers} style={{ padding: '10px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px' }}>
+            Test PIC Parsing (16F876A)
+          </button>
+        </div>
       </div>
     );
   }
@@ -78,6 +123,7 @@ export const TestParser: React.FC = () => {
         <div style={{ marginTop: '20px', backgroundColor: 'white', padding: '10px' }}>
           <h4>First Device: {firstDevice.name}</h4>
           <p><strong>Family:</strong> {firstDevice.family}</p>
+          <p><strong>Device Family:</strong> {firstDevice.deviceFamily || 'Unknown'}</p>
           <p><strong>Flash:</strong> {firstDevice.memory.flash.size} bytes ({Math.round(firstDevice.memory.flash.size / 1024)}KB)</p>
           <p><strong>Modules:</strong> {firstDevice.modules.length}</p>
           <p><strong>Fuses:</strong> {firstDevice.fuses.length}</p>

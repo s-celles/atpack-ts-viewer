@@ -1,9 +1,9 @@
 import React from 'react';
-import type { AtPackDevice } from '../types/atpack';
+import { DeviceFamily, type AtPackDevice } from '../types/atpack';
 import type { DeviceDisplayFilters } from './DeviceFilters';
 import { PackageImage } from './PackageImage';
 import { LockbitsConfigurator } from './LockbitsConfigurator';
-import { FusesConfigurator } from './FusesConfigurator';
+import { ConfiguratorSelector } from './ConfiguratorSelector';
 import { PeripheralRegisters } from './PeripheralRegisters';
 import { PinoutViewer } from './PinoutViewer';
 import { TimerConfigurator } from './TimerConfigurator';
@@ -23,12 +23,21 @@ export const DeviceDetails: React.FC<DeviceDetailsProps> = ({ device, filters })
   };
 
   return (
-    <table id="avrdevice">
+    <table id="atmeldevice">
       <tbody>
         <tr id="rowDev">
           <td className="at">Device</td>
           <td id="device">
-            {device.name}<br />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
+              <strong>{device.name}</strong>
+              {device.deviceFamily && (
+                <span style={{ fontSize: '16px' }} title={`Device Family: ${device.deviceFamily === DeviceFamily.ATMEL ? 'ATMEL' : device.deviceFamily}`}>
+                  {device.deviceFamily === DeviceFamily.ATMEL ? '🟢' : 
+                   device.deviceFamily === DeviceFamily.PIC ? '🔵' : 
+                   '⚪'}
+                </span>
+              )}
+            </div>
             {device.family} Microcontroller, {Math.round(device.memory.flash.size / 1024)}KB Flash, {device.variants.length} variant(s)
           </td>
         </tr>
@@ -286,17 +295,19 @@ export const DeviceDetails: React.FC<DeviceDetailsProps> = ({ device, filters })
 
         {filters.fuses && device.fuses.length > 0 && (
           <tr id="rowFus">
-            <td className="at">Fuses</td>
+            <td className="at">
+              {device.deviceFamily === DeviceFamily.PIC ? 'Configuration Words' : 'Fuses'}
+            </td>
             <td id="fuses">
-              <FusesConfigurator 
-                fuses={device.fuses} 
+              <ConfiguratorSelector 
+                device={device} 
                 formatAddress={formatAddress} 
               />
             </td>
           </tr>
         )}
 
-        {filters.lockbits && (
+        {filters.lockbits && device.deviceFamily !== DeviceFamily.PIC && (
           <tr id="rowLck">
             <td className="at">Lockbits</td>
             <td id="lockbits">

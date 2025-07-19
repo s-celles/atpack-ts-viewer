@@ -45,7 +45,7 @@ export const PackageImage: React.FC<PackageImageProps> = ({
 
   // Pin colors based on the original application
   const pinColor = (name?: string): string => {
-    if (!name) return 'white';
+    if (!name) return '#808080'; // Gray for NC (Not Connected)
     
     // Remove numbers to match by type
     const cleanName = name.replace(/(.*)\d+/, "$1");
@@ -314,9 +314,16 @@ export const PackageImage: React.FC<PackageImageProps> = ({
     
     // Draw pins based on package type
     if (type === 'PDIP' || type === 'SOIC') {
-      drawDIPPins(ctx, packageX, packageY, packageWidth, packageHeight, pinCount, actualPinout);
+      drawDIPPins(ctx, packageX, packageY, packageWidth, packageHeight, pinCount, actualPinout, false);
     } else {
-      drawQuadPins(ctx, packageX, packageY, packageWidth, packageHeight, pinCount, actualPinout);
+      // For QFN/TQFP, decide between 2-sided or 4-sided based on pin count
+      if (type === 'QFN' && pinCount % 4 !== 0 && pinCount % 2 === 0) {
+        // QFN with pins divisible by 2 but not by 4 -> use 2 sides (like DIP layout)
+        drawDIPPins(ctx, packageX, packageY, packageWidth, packageHeight, pinCount, actualPinout, true);
+      } else {
+        // Standard 4-sided layout for TQFP and QFN divisible by 4
+        drawQuadPins(ctx, packageX, packageY, packageWidth, packageHeight, pinCount, actualPinout);
+      }
     }
     
     // Restore transformations
@@ -324,7 +331,7 @@ export const PackageImage: React.FC<PackageImageProps> = ({
   };
   
   // Draw pins for DIP/SOIC packages (2 sides)
-  const drawDIPPins = (ctx: CanvasRenderingContext2D, pkgX: number, pkgY: number, pkgW: number, pkgH: number, pinCount: number, actualPinout: Record<number, string>) => {
+  const drawDIPPins = (ctx: CanvasRenderingContext2D, pkgX: number, pkgY: number, pkgW: number, pkgH: number, pinCount: number, actualPinout: Record<number, string>, isQFN: boolean = false) => {
     const pinsPerSide = pinCount / 2;
     const pinSpacing = (pkgH - 40 * scale) / (pinsPerSide - 1);
     const pinSize = 20 * scale;
@@ -349,18 +356,18 @@ export const PackageImage: React.FC<PackageImageProps> = ({
       ctx.font = `${10 * scale}px Arial`;
       ctx.fillText(pinNum.toString(), pkgX + 5 * scale, pinY + pinSize / 2);
       
-      // Pin name outside the component (only if there's a name)
-      if (actualPinout[pinNum]) {
-        ctx.font = `${12 * scale}px Arial`;
-        ctx.textAlign = 'right';
-        ctx.fillText(actualPinout[pinNum], pinX - 5 * scale, pinY + pinSize / 2);
-      }
+      // Pin name outside the component (display NC if no name)
+      const leftSidePinName = actualPinout[pinNum] || 'NC';
+      ctx.font = `${12 * scale}px Arial`;
+      ctx.textAlign = 'right';
+      ctx.fillText(leftSidePinName, pinX - 5 * scale, pinY + pinSize / 2);
     }
     
-    // Right side (pins pinsPerSide+1 to pinCount)
+    // Right side 
     for (let i = 0; i < pinsPerSide; i++) {
-      const pinNum = pinCount - i; // Reverse numbering
-      const pinY = pkgY + marginSize + i * pinSpacing;
+      // For QFN: sequential numbering, for DIP/SOIC: reverse numbering
+      const pinNum = isQFN ? (pinsPerSide + i + 1) : (pinCount - i);
+      const pinY = isQFN ? (pkgY + pkgH - marginSize - i * pinSpacing) : (pkgY + marginSize + i * pinSpacing);
       const pinX = pkgX + pkgW;
       
       // Draw the pin
@@ -376,57 +383,92 @@ export const PackageImage: React.FC<PackageImageProps> = ({
       ctx.font = `${10 * scale}px Arial`;
       ctx.fillText(pinNum.toString(), pkgX + pkgW - 5 * scale, pinY + pinSize / 2);
       
-      // Pin name outside the component (only if there's a name)
-      if (actualPinout[pinNum]) {
-        ctx.font = `${12 * scale}px Arial`;
-        ctx.textAlign = 'left';
-        ctx.fillText(actualPinout[pinNum], pinX + pinSize + 5 * scale, pinY + pinSize / 2);
-      }
+      // Pin name outside the component (display NC if no name)
+      const rightSidePinName = actualPinout[pinNum] || 'NC';
+      ctx.font = `${12 * scale}px Arial`;
+      ctx.textAlign = 'left';
+      ctx.fillText(rightSidePinName, pinX + pinSize + 5 * scale, pinY + pinSize / 2);
     }
   };
   
   // Draw pins for QFN/TQFP packages (4 sides)
   const drawQuadPins = (ctx: CanvasRenderingContext2D, pkgX: number, pkgY: number, pkgW: number, pkgH: number, pinCount: number, actualPinout: Record<number, string>) => {
-    const pinsPerSide = pinCount / 4;
     const pinSize = 15 * scale;
     const marginSize = 20 * scale;
     
     ctx.font = `${10 * scale}px Arial`;
     
-    // Left side (pins 1 to pinsPerSide)
-    const leftSpacing = (pkgH - 40 * scale) / (pinsPerSide - 1);
-    for (let i = 0; i < pinsPerSide; i++) {
-      const pinNum = i + 1;
+    // Special distribution for non-divisible-by-4 pin counts
+    let pinsPerSide: number[];
+    
+    if (pinCount % 4 === 0) {
+      // Standard case: equal distribution
+      const pins = pinCount / 4;
+      pinsPerSide = [pins, pins, pins, pins];
+    } else {
+      // Special cases for non-divisible pin counts
+      switch (pinCount) {
+        case 6:
+          pinsPerSide = [2, 1, 2, 1]; // left, bottom, right, top
+          break;
+        case 10:
+          pinsPerSide = [3, 2, 3, 2]; // left, bottom, right, top
+          break;
+        case 14:
+          pinsPerSide = [4, 3, 4, 3]; // left, bottom, right, top
+          break;
+        case 18:
+          pinsPerSide = [5, 4, 5, 4]; // left, bottom, right, top
+          break;
+        default:
+          // Fallback: distribute as evenly as possible
+          const base = Math.floor(pinCount / 4);
+          const extra = pinCount % 4;
+          pinsPerSide = [base, base, base, base];
+          for (let i = 0; i < extra; i++) {
+            pinsPerSide[i % 2 === 0 ? 0 : 2]++; // Add extras to left and right sides
+          }
+      }
+    }
+    
+    let currentPin = 1;
+    
+    // Left side
+    const leftSpacing = (pkgH - 40 * scale) / (pinsPerSide[0] - 1);
+    for (let i = 0; i < pinsPerSide[0]; i++) {
+      const pinNum = currentPin++;
       const pinY = pkgY + marginSize + i * leftSpacing;
-      const pinX = pkgX - pinSize - 5 * scale; // Add spacing from package edge
+      const pinX = pkgX - pinSize; // Pin directly attached to package
       
       drawPin(ctx, pinX, pinY, pinSize, pinNum, actualPinout[pinNum], 'left');
     }
     
-    // Bottom side (pins pinsPerSide+1 to 2*pinsPerSide)
-    const bottomSpacing = (pkgW - 40 * scale) / (pinsPerSide - 1);
-    for (let i = 0; i < pinsPerSide; i++) {
-      const pinNum = pinsPerSide + i + 1;
+    // Bottom side
+    const bottomSpacing = (pkgW - 40 * scale) / (pinsPerSide[1] - 1);
+    for (let i = 0; i < pinsPerSide[1]; i++) {
+      const pinNum = currentPin++;
       const pinX = pkgX + marginSize + i * bottomSpacing;
-      const pinY = pkgY + pkgH + 5 * scale; // Add spacing from package edge
+      const pinY = pkgY + pkgH; // Pin directly attached to package
       
       drawPin(ctx, pinX, pinY, pinSize, pinNum, actualPinout[pinNum], 'bottom');
     }
     
-    // Right side (pins 2*pinsPerSide+1 to 3*pinsPerSide)
-    for (let i = 0; i < pinsPerSide; i++) {
-      const pinNum = 2 * pinsPerSide + i + 1;
-      const pinY = pkgY + pkgH - marginSize - i * leftSpacing; // Reversed
-      const pinX = pkgX + pkgW + 5 * scale; // Add spacing from package edge
+    // Right side (reverse order for proper numbering)
+    const rightSpacing = (pkgH - 40 * scale) / (pinsPerSide[2] - 1);
+    for (let i = 0; i < pinsPerSide[2]; i++) {
+      const pinNum = currentPin++;
+      const pinY = pkgY + pkgH - marginSize - i * rightSpacing;
+      const pinX = pkgX + pkgW; // Pin directly attached to package
       
       drawPin(ctx, pinX, pinY, pinSize, pinNum, actualPinout[pinNum], 'right');
     }
     
-    // Top side (pins 3*pinsPerSide+1 to pinCount)
-    for (let i = 0; i < pinsPerSide; i++) {
-      const pinNum = 3 * pinsPerSide + i + 1;
-      const pinX = pkgX + pkgW - marginSize - i * bottomSpacing; // Reversed
-      const pinY = pkgY - pinSize - 5 * scale; // Add spacing from package edge
+    // Top side (reverse order for proper numbering)
+    const topSpacing = (pkgW - 40 * scale) / (pinsPerSide[3] - 1);
+    for (let i = 0; i < pinsPerSide[3]; i++) {
+      const pinNum = currentPin++;
+      const pinX = pkgX + pkgW - marginSize - i * topSpacing;
+      const pinY = pkgY - pinSize; // Pin directly attached to package
       
       drawPin(ctx, pinX, pinY, pinSize, pinNum, actualPinout[pinNum], 'top');
     }
@@ -453,14 +495,13 @@ export const PackageImage: React.FC<PackageImageProps> = ({
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
         ctx.font = `${8 * scale}px Arial`;
-        ctx.fillText(pinNum.toString(), x + size + 3 * scale, y + size / 2);
+        ctx.fillText(pinNum.toString(), x + size + 2 * scale, y + size / 2);
         
         // Name to the left of the pin (outside the component)
-        if (pinName) {
-          ctx.font = `${10 * scale}px Arial`;
-          ctx.textAlign = 'right';
-          ctx.fillText(pinName, x - 5 * scale, y + size / 2);
-        }
+        const leftPinName = pinName || 'NC';
+        ctx.font = `${10 * scale}px Arial`;
+        ctx.textAlign = 'right';
+        ctx.fillText(leftPinName, x - 5 * scale, y + size / 2);
         break;
         
       case 'right':
@@ -468,14 +509,13 @@ export const PackageImage: React.FC<PackageImageProps> = ({
         ctx.textAlign = 'right';
         ctx.textBaseline = 'middle';
         ctx.font = `${8 * scale}px Arial`;
-        ctx.fillText(pinNum.toString(), x - 3 * scale, y + size / 2);
+        ctx.fillText(pinNum.toString(), x - 2 * scale, y + size / 2);
         
         // Name to the right of the pin (outside the component)
-        if (pinName) {
-          ctx.font = `${10 * scale}px Arial`;
-          ctx.textAlign = 'left';
-          ctx.fillText(pinName, x + size + 5 * scale, y + size / 2);
-        }
+        const rightPinName = pinName || 'NC';
+        ctx.font = `${10 * scale}px Arial`;
+        ctx.textAlign = 'left';
+        ctx.fillText(rightPinName, x + size + 5 * scale, y + size / 2);
         break;
         
       case 'top':
@@ -483,19 +523,18 @@ export const PackageImage: React.FC<PackageImageProps> = ({
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
         ctx.font = `${8 * scale}px Arial`;
-        ctx.fillText(pinNum.toString(), x + size / 2, y + size + 3 * scale);
+        ctx.fillText(pinNum.toString(), x + size / 2, y + size + 2 * scale);
         
         // Name above the pin (outside the component) - aligned left (pin side)
-        if (pinName) {
-          ctx.save();
-          ctx.translate(x + size / 2, y - 8 * scale); // Increased spacing from 5 to 8
-          ctx.rotate(-Math.PI / 2);
-          ctx.font = `${10 * scale}px Arial`;
-          ctx.textAlign = 'left';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(pinName, 0, 0);
-          ctx.restore();
-        }
+        const topPinName = pinName || 'NC';
+        ctx.save();
+        ctx.translate(x + size / 2, y - 8 * scale);
+        ctx.rotate(-Math.PI / 2);
+        ctx.font = `${10 * scale}px Arial`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(topPinName, 0, 0);
+        ctx.restore();
         break;
         
       case 'bottom':
@@ -503,19 +542,18 @@ export const PackageImage: React.FC<PackageImageProps> = ({
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
         ctx.font = `${8 * scale}px Arial`;
-        ctx.fillText(pinNum.toString(), x + size / 2, y - 3 * scale);
+        ctx.fillText(pinNum.toString(), x + size / 2, y - 2 * scale);
         
         // Name below the pin (outside the component) - aligned right (pin side)
-        if (pinName) {
-          ctx.save();
-          ctx.translate(x + size / 2, y + size + 8 * scale); // Increased spacing from 5 to 8
-          ctx.rotate(-Math.PI / 2);
-          ctx.font = `${10 * scale}px Arial`;
-          ctx.textAlign = 'right';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(pinName, 0, 0);
-          ctx.restore();
-        }
+        const bottomPinName = pinName || 'NC';
+        ctx.save();
+        ctx.translate(x + size / 2, y + size + 8 * scale);
+        ctx.rotate(-Math.PI / 2);
+        ctx.font = `${10 * scale}px Arial`;
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(bottomPinName, 0, 0);
+        ctx.restore();
         break;
     }
   };

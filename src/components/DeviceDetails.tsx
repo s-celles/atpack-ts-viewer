@@ -3,6 +3,7 @@ import type { AtPackDevice } from '../types/atpack';
 import type { DeviceDisplayFilters } from './DeviceFilters';
 import { PackageImage } from './PackageImage';
 import { LockbitsConfigurator } from './LockbitsConfigurator';
+import { FusesConfigurator } from './FusesConfigurator';
 import { PeripheralRegisters } from './PeripheralRegisters';
 import { PinoutViewer } from './PinoutViewer';
 import { TimerConfigurator } from './TimerConfigurator';
@@ -287,25 +288,10 @@ export const DeviceDetails: React.FC<DeviceDetailsProps> = ({ device, filters })
           <tr id="rowFus">
             <td className="at">Fuses</td>
             <td id="fuses">
-              <div>
-                {device.fuses.map((fuse, index) => (
-                  <div key={index}>
-                    <h4>{fuse.name} (offset:{formatAddress(fuse.offset)})</h4>
-                    {fuse.bitfields.length > 0 && (
-                      <table>
-                        <tbody>
-                          {fuse.bitfields.map((bf, bfIndex) => (
-                            <tr key={bfIndex}>
-                              <td>{bf.description}</td>
-                              <td>{bf.name} (bits {bf.bitOffset}:{bf.bitOffset + bf.bitWidth - 1})</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-                ))}
-              </div>
+              <FusesConfigurator 
+                fuses={device.fuses} 
+                formatAddress={formatAddress} 
+              />
             </td>
           </tr>
         )}

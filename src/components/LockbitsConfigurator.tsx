@@ -84,10 +84,15 @@ export const LockbitsConfigurator: React.FC<LockbitsConfiguratorProps> = ({
             }}>
               {lockbit.defaultValue !== undefined && (
                 <>
-                  (default: 0x{lockbit.defaultValue.toString(16).toUpperCase().padStart(2, '0')}, {' '}
+                  default: 0x{lockbit.defaultValue.toString(16).toUpperCase().padStart(2, '0')},{' '}
                 </>
               )}
-              current: 0x{calculateRegisterValue(lockbit).toString(16).toUpperCase().padStart(2, '0')})
+              current: 0x{calculateRegisterValue(lockbit).toString(16).toUpperCase().padStart(2, '0')}
+              {lockbit.defaultValue !== undefined && calculateRegisterValue(lockbit) !== lockbit.defaultValue && (
+                <span style={{ color: '#d00', marginLeft: '8px' }}>
+                  ⚠ Modified
+                </span>
+              )}
             </span>
           </h4>
           

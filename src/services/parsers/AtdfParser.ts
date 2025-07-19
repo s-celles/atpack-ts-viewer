@@ -259,160 +259,200 @@ export class AtdfParser extends BaseParser {
     }
   }
   
+  /**
+   * Parse fuse configurations from ATDF
+   */
   private parseFuses(atdfDoc: Document): FuseConfig[] {
     const fuses: FuseConfig[] = [];
-    const fuseModule = atdfDoc.querySelector('module[name="FUSE"]');
     
-    if (!fuseModule) return fuses;
-    
-    const registers = fuseModule.querySelectorAll('register-group register');
-    registers.forEach(register => {
-      const fuseName = this.getAttr(register, 'name');
-      const offset = this.getAttrHex(register, 'offset');
-      const size = this.getAttrInt(register, 'size', 10);
-      const initval = this.getAttrHex(register, 'initval') || 0xFF;
+    try {
+      // Look for FUSE module
+      const fuseModules = atdfDoc.querySelectorAll('modules module[name="FUSE"]');
       
-      const fuse: FuseConfig = {
-        name: fuseName,
-        offset,
-        size,
-        mask: initval,
-        bitfields: []
-      };
-      
-      const bitfields = register.querySelectorAll('bitfield');
-      bitfields.forEach(bf => {
-        const mask = this.getAttrHex(bf, 'mask');
-        const name = this.getAttr(bf, 'name');
-        const caption = this.getAttr(bf, 'caption');
-        const valuesRef = this.getAttr(bf, 'values');
+      fuseModules.forEach(fuseModule => {
+        // Look for register-group within the fuse module
+        const registerGroups = fuseModule.querySelectorAll('register-group[name="FUSE"]');
         
-        // Calculate bitOffset and bitWidth from mask
-        const { bitOffset, bitWidth } = this.calculateBitRange(mask);
-        
-        const bitfield: FuseBitfield = {
-          name,
-          description: caption,
-          bitOffset,
-          bitWidth,
-          values: valuesRef ? this.parseFuseValues(atdfDoc, valuesRef) : undefined
-        };
-        
-        fuse.bitfields.push(bitfield);
+        registerGroups.forEach(registerGroup => {
+          // Parse each register within the fuse register group
+          const registers = registerGroup.querySelectorAll('register');
+          
+          registers.forEach(register => {
+            const fuseName = this.getAttr(register, 'name');
+            const offset = parseInt(this.getAttr(register, 'offset') || '0', 16);
+            const size = parseInt(this.getAttr(register, 'size') || '1');
+            const mask = parseInt(this.getAttr(register, 'mask') || 'FF', 16);
+            const initval = this.getAttr(register, 'initval');
+            
+            if (fuseName) {
+              const bitfields: FuseBitfield[] = [];
+              let bitfieldMask = 0; // Start with 0, XOR with each bitfield mask
+              
+              // Parse bitfields within this fuse register
+              const bitfieldElements = register.querySelectorAll('bitfield');
+              bitfieldElements.forEach(bitfield => {
+                const bitfieldName = this.getAttr(bitfield, 'name');
+                const description = this.getAttr(bitfield, 'caption') || bitfieldName || '';
+                const bitfieldMaskValue = parseInt(this.getAttr(bitfield, 'mask') || '0', 16);
+                const valuesRef = this.getAttr(bitfield, 'values');
+                
+                if (bitfieldName && bitfieldMaskValue > 0) {
+                  // Accumulate the combined bitfield mask (following ctag/atpack logic)
+                  bitfieldMask ^= bitfieldMaskValue;
+                  
+                  const { bitOffset, bitWidth } = this.calculateBitRange(bitfieldMaskValue);
+                  
+                  // Parse possible values for this bitfield
+                  const values: FuseBitValue[] = [];
+                  if (valuesRef) {
+                    const valueGroup = fuseModule.querySelector(`value-group[name="${valuesRef}"]`);
+                    if (valueGroup) {
+                      const valueElements = valueGroup.querySelectorAll('value');
+                      valueElements.forEach(valueElement => {
+                        const valueName = this.getAttr(valueElement, 'name');
+                        const valueCaption = this.getAttr(valueElement, 'caption');
+                        const valueNum = parseInt(this.getAttr(valueElement, 'value') || '0', 16);
+                        
+                        if (valueName) {
+                          values.push({
+                            value: valueNum,
+                            name: valueName,
+                            description: valueCaption || valueName
+                          });
+                        }
+                      });
+                    }
+                  }
+                  
+                  bitfields.push({
+                    name: bitfieldName,
+                    description,
+                    bitOffset,
+                    bitWidth,
+                    values: values.length > 0 ? values : undefined
+                  });
+                }
+              });
+              
+              // Invert the combined bitfield mask to get the final mask (following ctag/atpack logic)
+              bitfieldMask ^= -1;
+              
+              // Calculate default value following ctag/atpack logic exactly
+              let defaultValue: number;
+              if (initval) {
+                // Use the explicit initval if available
+                defaultValue = parseInt(initval, 16);
+              } else {
+                // Use getOnes(size) & bitfieldmask as fallback (following ctag/atpack logic)
+                const allOnes = this.getOnes(size);
+                defaultValue = allOnes & bitfieldMask;
+              }
+              
+              fuses.push({
+                name: fuseName,
+                offset,
+                size,
+                mask,
+                defaultValue,
+                bitfields
+              });
+            }
+          });
+        });
       });
-      
-      fuses.push(fuse);
-    });
+    } catch (error) {
+      console.error('Error parsing fuses:', error);
+    }
     
     return fuses;
   }
 
-  private parseFuseValues(atdfDoc: Document, valuesGroupName: string): FuseBitValue[] {
-    const values: FuseBitValue[] = [];
-    const valueGroup = atdfDoc.querySelector(`value-group[name="${valuesGroupName}"]`);
-    
-    if (valueGroup) {
-      const valueElements = valueGroup.querySelectorAll('value');
-      valueElements.forEach(val => {
-        values.push({
-          value: this.getAttrHex(val, 'value'),
-          name: this.getAttr(val, 'name'),
-          description: this.getAttr(val, 'caption')
-        });
-      });
-    }
-    
-    return values;
-  }
-
+  /**
+   * Parse lockbit configurations from ATDF
+   */
   private parseLockbits(atdfDoc: Document): LockbitConfig[] {
     const lockbits: LockbitConfig[] = [];
-    console.log('Parsing lockbits from ATDF using XPath...');
     
-    // Use XPath to find all modules that contain lockbit-related content
-    const xpathModules = `//modules/module[contains(translate(@name, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'lock')]`;
-    
-    const moduleResult = atdfDoc.evaluate(
-      xpathModules,
-      atdfDoc,
-      null,
-      XPathResult.ORDERED_NODE_ITERATOR_TYPE,
-      null
-    );
-    
-    let moduleNode = moduleResult.iterateNext();
-    
-    while (moduleNode) {
-      const module = moduleNode as Element;
-      const moduleName = this.getAttr(module, 'name');
-      const moduleCaption = this.getAttr(module, 'caption');
+    try {
+      // Look for LOCKBIT module
+      const lockbitModules = atdfDoc.querySelectorAll('modules module[name="LOCKBIT"]');
       
-      console.log(`Found lockbit module: name="${moduleName}", caption="${moduleCaption}"`);
-      
-      // Find all registers in this module
-      const registers = module.querySelectorAll('register');
-      
-      registers.forEach(register => {
-        const registerName = this.getAttr(register, 'name');
-        const offset = this.getAttrHex(register, 'offset');
-        const size = this.getAttrInt(register, 'size', 10);
-        const initval = this.getAttr(register, 'initval');
+      lockbitModules.forEach(lockbitModule => {
+        // Look for register-group within the lockbit module
+        const registerGroups = lockbitModule.querySelectorAll('register-group[name="LOCKBIT"]');
         
-        const lockbit: LockbitConfig = {
-          name: registerName,
-          offset,
-          size,
-          defaultValue: initval ? this.parseHex(initval) : undefined,
-          bits: []
-        };
-        
-        // Find all bitfields in this register
-        const bitfields = register.querySelectorAll('bitfield');
-        
-        bitfields.forEach(bf => {
-          const mask = this.getAttrHex(bf, 'mask');
-          const bitName = this.getAttr(bf, 'name');
-          const caption = this.getAttr(bf, 'caption');
-          const valuesAttr = this.getAttr(bf, 'values');
+        registerGroups.forEach(registerGroup => {
+          // Parse each register within the lockbit register group
+          const registers = registerGroup.querySelectorAll('register');
           
-          const { bitOffset, bitWidth } = this.calculateBitRange(mask);
-          
-          // Extract possible values if available
-          let values: any[] | undefined;
-          if (valuesAttr) {
-            const valueGroup = module.querySelector(`value-group[name="${valuesAttr}"]`);
-            if (valueGroup) {
-              values = [];
-              const valueElements = valueGroup.querySelectorAll('value');
+          registers.forEach(register => {
+            const lockbitName = this.getAttr(register, 'name');
+            const offset = parseInt(this.getAttr(register, 'offset') || '0', 16);
+            const size = parseInt(this.getAttr(register, 'size') || '1');
+            const initval = this.getAttr(register, 'initval');
+            const defaultValue = initval ? parseInt(initval, 16) : undefined;
+            
+            if (lockbitName) {
+              const bits: any[] = []; // Using any to match the existing LockbitField interface
               
-              valueElements.forEach(valueEl => {
-                values!.push({
-                  name: this.getAttr(valueEl, 'name'),
-                  caption: this.getAttr(valueEl, 'caption'),
-                  value: this.getAttrHex(valueEl, 'value')
-                });
+              // Parse bitfields within this lockbit register
+              const bitfieldElements = register.querySelectorAll('bitfield');
+              bitfieldElements.forEach(bitfield => {
+                const bitfieldName = this.getAttr(bitfield, 'name');
+                const description = this.getAttr(bitfield, 'caption') || bitfieldName || '';
+                const bitfieldMask = parseInt(this.getAttr(bitfield, 'mask') || '0', 16);
+                const valuesRef = this.getAttr(bitfield, 'values');
+                
+                if (bitfieldName && bitfieldMask > 0) {
+                  const { bitOffset, bitWidth } = this.calculateBitRange(bitfieldMask);
+                  
+                  // Parse possible values for this bitfield
+                  const values: any[] = [];
+                  if (valuesRef) {
+                    const valueGroup = lockbitModule.querySelector(`value-group[name="${valuesRef}"]`);
+                    if (valueGroup) {
+                      const valueElements = valueGroup.querySelectorAll('value');
+                      valueElements.forEach(valueElement => {
+                        const valueName = this.getAttr(valueElement, 'name');
+                        const valueCaption = this.getAttr(valueElement, 'caption');
+                        const valueNum = parseInt(this.getAttr(valueElement, 'value') || '0', 16);
+                        
+                        if (valueName) {
+                          values.push({
+                            value: valueNum,
+                            name: valueName,
+                            caption: valueCaption || valueName
+                          });
+                        }
+                      });
+                    }
+                  }
+                  
+                  bits.push({
+                    name: bitfieldName,
+                    description,
+                    bitOffset,
+                    bitWidth,
+                    values: values.length > 0 ? values : undefined
+                  });
+                }
+              });
+              
+              lockbits.push({
+                name: lockbitName,
+                offset,
+                size,
+                defaultValue,
+                bits
               });
             }
-          }
-          
-          lockbit.bits.push({
-            name: bitName,
-            description: caption,
-            bitOffset,
-            bitWidth,
-            values
           });
         });
-        
-        if (lockbit.bits.length > 0) {
-          lockbits.push(lockbit);
-        }
       });
-      
-      moduleNode = moduleResult.iterateNext();
+    } catch (error) {
+      console.error('Error parsing lockbits:', error);
     }
     
-    console.log(`Found ${lockbits.length} lockbit registers`);
     return lockbits;
   }
 
@@ -681,6 +721,19 @@ export class AtdfParser extends BaseParser {
     });
     
     return { parameters, groups };
+  }
+
+  /**
+   * Generate a mask with all ones for the given size (following ctag/atpack getOnes logic)
+   */
+  private getOnes(size: number): number {
+    switch (size) {
+      case 1: return 0xff;
+      case 2: return 0xffff;
+      case 3: return 0xffffff;
+      case 4: return 0xffffffff;
+      default: return -1;
+    }
   }
 
   /**

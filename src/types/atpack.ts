@@ -167,6 +167,7 @@ export interface FuseConfig {
   offset: number;
   size: number;
   mask: number;
+  defaultValue?: number; // initval from ATDF
   bitfields: FuseBitfield[];
 }
 

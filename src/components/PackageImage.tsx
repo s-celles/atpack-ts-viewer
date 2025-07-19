@@ -85,19 +85,83 @@ export const PackageImage: React.FC<PackageImageProps> = ({
   // Extract type and pin count
   const getPackageInfo = (name: string) => {
     const upperName = name.toUpperCase();
+    
+    // Special case for SOT23-X packages (e.g., SOT23-6, SOT23-5)
+    const sotMatch = name.match(/SOT23-(\d+)/i);
+    if (sotMatch) {
+      return {
+        type: 'SOIC',
+        pinCount: parseInt(sotMatch[1]),
+        isExactMatch: false // SOT23 is approximated by SOIC
+      };
+    }
+    
+    // Special case for other packages with dash notation (e.g., QFN-16, TQFP-64)
+    const dashMatch = name.match(/(\w+)-(\d+)/);
+    if (dashMatch) {
+      const packageType = dashMatch[1].toUpperCase();
+      const pinCount = parseInt(dashMatch[2]);
+      
+      let type = 'GENERIC';
+      let isExactMatch = false;
+      
+      if (packageType.includes('TQFP') || packageType.includes('LQFP')) {
+        type = 'TQFP';
+        isExactMatch = true;
+      }
+      else if (packageType.includes('QFN') || packageType.includes('MLF') || packageType.includes('VQFN')) {
+        type = 'QFN';
+        isExactMatch = true;
+      }
+      else if (packageType.includes('PDIP') || packageType.includes('DIP')) {
+        type = 'PDIP';
+        isExactMatch = true;
+      }
+      else if (packageType.includes('SOIC') || packageType.includes('TSSOP')) {
+        type = 'SOIC';
+        isExactMatch = true;
+      }
+      else if (packageType.includes('UDFN') || packageType.includes('SOT')) {
+        type = 'SOIC';
+        isExactMatch = false; // These are approximated by SOIC
+      }
+      
+      return { type, pinCount, isExactMatch };
+    }
+    
+    // Default logic: find first number in package name
     const pinMatch = name.match(/(\d+)/);
     const pinCount = pinMatch ? parseInt(pinMatch[1]) : Object.keys(pinout).length;
     
     let type = 'GENERIC';
-    if (upperName.includes('TQFP') || upperName.includes('LQFP')) type = 'TQFP';
-    else if (upperName.includes('QFN') || upperName.includes('MLF') || upperName.includes('VQFN')) type = 'QFN';
-    else if (upperName.includes('PDIP') || upperName.includes('DIP')) type = 'PDIP';
-    else if (upperName.includes('SOIC') || upperName.includes('TSSOP') || upperName.includes('UDFN') || upperName.includes('SOT23')) type = 'SOIC';
+    let isExactMatch = false;
     
-    return { type, pinCount };
+    if (upperName.includes('TQFP') || upperName.includes('LQFP')) {
+      type = 'TQFP';
+      isExactMatch = upperName.includes('TQFP') || upperName.includes('LQFP');
+    }
+    else if (upperName.includes('QFN') || upperName.includes('MLF') || upperName.includes('VQFN')) {
+      type = 'QFN';
+      isExactMatch = true;
+    }
+    else if (upperName.includes('PDIP') || upperName.includes('DIP')) {
+      type = 'PDIP';
+      isExactMatch = true;
+    }
+    else if (upperName.includes('SOIC') || upperName.includes('TSSOP')) {
+      type = 'SOIC';
+      isExactMatch = true;
+    }
+    else if (upperName.includes('UDFN') || upperName.includes('SOT23')) {
+      type = 'SOIC';
+      // UDFN and SOT23 without dash notation are approximated as SOIC
+      isExactMatch = false;
+    }
+    
+    return { type, pinCount, isExactMatch };
   };
 
-  const drawPackage = (canvas: HTMLCanvasElement, type: string, pinCount: number) => {
+  const drawPackage = (canvas: HTMLCanvasElement, type: string, pinCount: number, isExactMatch: boolean = true) => {
     console.log('=== START DRAWPACKAGE ===');
     console.log('Canvas:', canvas);
     console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
@@ -130,6 +194,7 @@ export const PackageImage: React.FC<PackageImageProps> = ({
     console.log('deviceName:', deviceName);
     console.log('type:', type);
     console.log('pinCount:', pinCount);
+    console.log('isExactMatch:', isExactMatch);
     console.log('canvas dimensions:', width, 'x', height);
     console.log('pinout keys:', Object.keys(pinout));
     console.log('pinout complet:', pinout);
@@ -165,15 +230,16 @@ export const PackageImage: React.FC<PackageImageProps> = ({
     const actualPinout = pinout;
 
     // Now draw the real package
-    drawSimplePackage(ctx, type, pinCount, actualPinout);
+    drawSimplePackage(ctx, type, pinCount, actualPinout, isExactMatch);
     
     console.log('=== END DEBUG PackageImage ===');
   };
 
   // Simplified function to draw packages
-  const drawSimplePackage = (ctx: CanvasRenderingContext2D, type: string, pinCount: number, actualPinout: Record<number, string>) => {
+  const drawSimplePackage = (ctx: CanvasRenderingContext2D, type: string, pinCount: number, actualPinout: Record<number, string>, isExactMatch: boolean = true) => {
     console.log('=== DRAWING SIMPLE PACKAGE ===');
     console.log('Type:', type, 'PinCount:', pinCount, 'Scale:', scale);
+    console.log('IsExactMatch:', isExactMatch);
     console.log('ViewState:', viewState);
     
     // Apply zoom and pan transformations
@@ -183,6 +249,7 @@ export const PackageImage: React.FC<PackageImageProps> = ({
     
     // Base dimensions (scaled)
     const pinSpacing = 30 * scale;
+    const textMargin = 40 * scale; // Margin for pin names outside the package
     
     // Calculate package dimensions according to type
     let packageWidth = 200 * scale;
@@ -190,18 +257,18 @@ export const PackageImage: React.FC<PackageImageProps> = ({
     let packageX = width / 2 - packageWidth / 2;
     let packageY = height / 2 - packageHeight / 2;
     
-    // Adjust based on number of pins
+    // Adjust based on number of pins and add margin for text
     if (type === 'PDIP' || type === 'SOIC') {
       // 2-sided package
       packageHeight = Math.max(200 * scale, (pinCount / 2) * pinSpacing + 60 * scale);
       packageY = height / 2 - packageHeight / 2;
     } else {
-      // 4-sided package (QFN, TQFP, etc.)
+      // 4-sided package (QFN, TQFP, etc.) - add extra space for rotated text
       const sideLength = Math.max(200 * scale, (pinCount / 4) * pinSpacing + 60 * scale);
       packageWidth = sideLength;
       packageHeight = sideLength;
       packageX = width / 2 - packageWidth / 2;
-      packageY = height / 2 - packageHeight / 2;
+      packageY = (height / 2 - packageHeight / 2) - textMargin / 2; // Move up to leave space below
     }
     
     // Draw the package body
@@ -238,7 +305,8 @@ export const PackageImage: React.FC<PackageImageProps> = ({
     ctx.textBaseline = 'middle';
     
     const packageType = `${type}${pinCount}`;
-    ctx.fillText(packageType, packageX + packageWidth / 2, packageY + packageHeight / 2 - 10 * scale);
+    const displayName = isExactMatch ? packageType : `(${packageType})`;
+    ctx.fillText(displayName, packageX + packageWidth / 2, packageY + packageHeight / 2 - 10 * scale);
     ctx.font = `${14 * scale}px Arial`;
     ctx.fillText(deviceName, packageX + packageWidth / 2, packageY + packageHeight / 2 + 10 * scale);
     
@@ -330,7 +398,7 @@ export const PackageImage: React.FC<PackageImageProps> = ({
     for (let i = 0; i < pinsPerSide; i++) {
       const pinNum = i + 1;
       const pinY = pkgY + marginSize + i * leftSpacing;
-      const pinX = pkgX - pinSize;
+      const pinX = pkgX - pinSize - 5 * scale; // Add spacing from package edge
       
       drawPin(ctx, pinX, pinY, pinSize, pinNum, actualPinout[pinNum], 'left');
     }
@@ -340,7 +408,7 @@ export const PackageImage: React.FC<PackageImageProps> = ({
     for (let i = 0; i < pinsPerSide; i++) {
       const pinNum = pinsPerSide + i + 1;
       const pinX = pkgX + marginSize + i * bottomSpacing;
-      const pinY = pkgY + pkgH;
+      const pinY = pkgY + pkgH + 5 * scale; // Add spacing from package edge
       
       drawPin(ctx, pinX, pinY, pinSize, pinNum, actualPinout[pinNum], 'bottom');
     }
@@ -349,7 +417,7 @@ export const PackageImage: React.FC<PackageImageProps> = ({
     for (let i = 0; i < pinsPerSide; i++) {
       const pinNum = 2 * pinsPerSide + i + 1;
       const pinY = pkgY + pkgH - marginSize - i * leftSpacing; // Reversed
-      const pinX = pkgX + pkgW;
+      const pinX = pkgX + pkgW + 5 * scale; // Add spacing from package edge
       
       drawPin(ctx, pinX, pinY, pinSize, pinNum, actualPinout[pinNum], 'right');
     }
@@ -358,7 +426,7 @@ export const PackageImage: React.FC<PackageImageProps> = ({
     for (let i = 0; i < pinsPerSide; i++) {
       const pinNum = 3 * pinsPerSide + i + 1;
       const pinX = pkgX + pkgW - marginSize - i * bottomSpacing; // Reversed
-      const pinY = pkgY - pinSize;
+      const pinY = pkgY - pinSize - 5 * scale; // Add spacing from package edge
       
       drawPin(ctx, pinX, pinY, pinSize, pinNum, actualPinout[pinNum], 'top');
     }
@@ -420,7 +488,7 @@ export const PackageImage: React.FC<PackageImageProps> = ({
         // Name above the pin (outside the component) - aligned left (pin side)
         if (pinName) {
           ctx.save();
-          ctx.translate(x + size / 2, y - 5 * scale);
+          ctx.translate(x + size / 2, y - 8 * scale); // Increased spacing from 5 to 8
           ctx.rotate(-Math.PI / 2);
           ctx.font = `${10 * scale}px Arial`;
           ctx.textAlign = 'left';
@@ -440,7 +508,7 @@ export const PackageImage: React.FC<PackageImageProps> = ({
         // Name below the pin (outside the component) - aligned right (pin side)
         if (pinName) {
           ctx.save();
-          ctx.translate(x + size / 2, y + size + 5 * scale);
+          ctx.translate(x + size / 2, y + size + 8 * scale); // Increased spacing from 5 to 8
           ctx.rotate(-Math.PI / 2);
           ctx.font = `${10 * scale}px Arial`;
           ctx.textAlign = 'right';
@@ -528,9 +596,9 @@ export const PackageImage: React.FC<PackageImageProps> = ({
     console.log('pinout:', pinout);
     
     if (canvasRef.current) {
-      const { type, pinCount } = getPackageInfo(packageName);
-      console.log('Calling drawPackage with type:', type, 'pinCount:', pinCount);
-      drawPackage(canvasRef.current, type, pinCount);
+      const { type, pinCount, isExactMatch } = getPackageInfo(packageName);
+      console.log('Calling drawPackage with type:', type, 'pinCount:', pinCount, 'isExactMatch:', isExactMatch);
+      drawPackage(canvasRef.current, type, pinCount, isExactMatch);
     } else {
       console.log('Canvas ref is null!');
     }

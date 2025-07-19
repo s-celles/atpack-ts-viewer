@@ -265,6 +265,22 @@ export const AtPackSelector: React.FC = () => {
             </button>
           </div>
           
+          {/* GitHub Pages Notice */}
+          {!import.meta.env.DEV && (
+            <div style={{ 
+              backgroundColor: '#e7f3ff', 
+              border: '1px solid #b3d9ff', 
+              borderRadius: '4px', 
+              padding: '8px', 
+              marginTop: '10px',
+              color: '#0066cc',
+              fontSize: '11px' 
+            }}>
+              <strong>ℹ️ Note:</strong> Loading from external URLs may sometimes fail due to CORS restrictions on GitHub Pages. 
+              If URL loading fails, download the .atpack file and upload it using the file input above.
+            </div>
+          )}
+          
           {/*
           <div>
             <strong>Load from PIDX index:</strong><br />
@@ -310,6 +326,20 @@ export const AtPackSelector: React.FC = () => {
         {error && (
           <div style={{ color: 'red', fontSize: '12px', marginTop: '5px' }}>
             {error}
+            {error.includes('CORS') && (
+              <div style={{ 
+                backgroundColor: '#fff3cd', 
+                border: '1px solid #ffeaa7', 
+                borderRadius: '4px', 
+                padding: '8px', 
+                marginTop: '5px',
+                color: '#856404',
+                fontSize: '11px' 
+              }}>
+                <strong>💡 CORS Issue:</strong> Loading from URLs may fail on GitHub Pages due to security restrictions. 
+                Try downloading the .atpack file and uploading it locally instead.
+              </div>
+            )}
           </div>
         )}
       </td>

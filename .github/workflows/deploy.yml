@@ -2,8 +2,8 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ main ] # ou master selon votre branche principale
-  workflow_dispatch: # Permet le déclenchement manuel
+    branches: [ main ] # or master depending on your main branch
+  workflow_dispatch: # Allows manual triggering
 
 permissions:
   contents: read
@@ -24,7 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20' # Updated to Node.js 20 LTS
           cache: 'npm'
 
       - name: Install dependencies

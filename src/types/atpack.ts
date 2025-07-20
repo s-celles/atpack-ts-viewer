@@ -345,3 +345,81 @@ export class AtPackParseError extends Error {
     this.originalError = originalError;
   }
 }
+
+// PIC Device Specifications interfaces
+export interface PicSpecifications {
+  // Architecture
+  architecture?: string;
+  stackDepth?: number;
+  instructionSet?: string;
+  
+  // Memory Organization
+  codeMemory?: MemorySection[];
+  dataMemory?: MemorySection[];
+  eepromMemory?: MemorySection[];
+  configMemory?: MemorySection[];
+  
+  // Power & Programming
+  vdd?: PowerSpec;
+  vpp?: PowerSpec;
+  programmingSpecs?: ProgrammingSpec[];
+  
+  // Device ID & Version
+  deviceId?: DeviceIdSpec;
+  
+  // Debug & Breakpoints
+  debugInfo?: DebugInfo;
+  
+  // Special Function Registers
+  sfrs?: SfrSpec[];
+}
+
+export interface MemorySection {
+  name: string;
+  startAddress: string;
+  endAddress: string;
+  description: string;
+  sizeBytes?: number;
+}
+
+export interface PowerSpec {
+  min: number;
+  max: number;
+  nominal?: number;
+  defaultVoltage?: number;
+}
+
+export interface ProgrammingSpec {
+  operation: string;
+  time: number;
+  timeUnits: string;
+  latchSize?: number;
+}
+
+export interface DeviceIdSpec {
+  address: string;
+  mask: string;
+  value: string;
+  revisions?: Array<{ value: string; revisions: string }>;
+}
+
+export interface DebugInfo {
+  hardwareBreakpoints: number;
+  hasDataCapture: boolean;
+}
+
+export interface SfrSpec {
+  name: string;
+  address: string;
+  description: string;
+  access: string;
+  resetValue: string;
+  fields?: SfrField[];
+}
+
+export interface SfrField {
+  name: string;
+  bits: string;
+  description: string;
+  access: string;
+}

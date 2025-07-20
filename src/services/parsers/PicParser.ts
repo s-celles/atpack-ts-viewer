@@ -6,7 +6,14 @@ import type {
   MemorySegment,
   FuseConfig,
   FuseBitfield,
-  FuseBitValue
+  FuseBitValue,
+  PicSpecifications,
+  MemorySection,
+  PowerSpec,
+  ProgrammingSpec,
+  DeviceIdSpec,
+  DebugInfo,
+  SfrSpec
 } from '../../types/atpack';
 import { DeviceFamily } from '../../types/atpack';
 
@@ -302,5 +309,215 @@ export class PicParser extends BaseParser {
     });
     
     return values;
+  }
+
+  /**
+   * Parse comprehensive PIC specifications from XML document
+   */
+  parsePicSpecs(xmlDoc: Document): PicSpecifications {
+    const picElement = xmlDoc.querySelector('edc\\:PIC, PIC');
+    if (!picElement) {
+      throw new Error('No PIC element found in document');
+    }
+
+    return {
+      architecture: this.extractArchitecture(xmlDoc),
+      stackDepth: this.extractStackDepth(xmlDoc),
+      instructionSet: this.extractInstructionSet(xmlDoc),
+      codeMemory: this.extractCodeMemory(xmlDoc),
+      dataMemory: this.extractDataMemory(xmlDoc),
+      eepromMemory: this.extractEepromMemory(xmlDoc),
+      configMemory: this.extractConfigMemory(xmlDoc),
+      vdd: this.extractVddSpec(xmlDoc),
+      vpp: this.extractVppSpec(xmlDoc),
+      programmingSpecs: this.extractProgrammingSpecs(xmlDoc),
+      deviceId: this.extractDeviceIdSpec(xmlDoc),
+      debugInfo: this.extractDebugInfo(xmlDoc),
+      sfrs: this.extractSfrSpecs(xmlDoc)
+    };
+  }
+
+  private extractArchitecture(xmlDoc: Document): string | undefined {
+    const picElement = xmlDoc.querySelector('edc\\:PIC, PIC');
+    return picElement ? this.getAttr(picElement, 'edc:arch', '') : undefined;
+  }
+
+  private extractStackDepth(xmlDoc: Document): number | undefined {
+    const memTraitsElement = xmlDoc.querySelector('edc\\:MemTraits, MemTraits');
+    if (!memTraitsElement) return undefined;
+    const stackDepth = this.getAttr(memTraitsElement, 'edc:hwstackdepth', '');
+    return stackDepth ? parseInt(stackDepth, 10) : undefined;
+  }
+
+  private extractInstructionSet(xmlDoc: Document): string | undefined {
+    const instructionSetElement = xmlDoc.querySelector('edc\\:InstructionSet, InstructionSet');
+    return instructionSetElement ? this.getAttr(instructionSetElement, 'edc:instructionsetid', '') : undefined;
+  }
+
+  private extractCodeMemory(xmlDoc: Document): MemorySection[] {
+    const codeSectors = Array.from(xmlDoc.querySelectorAll('edc\\:CodeSector, CodeSector'));
+    return codeSectors.map(sector => ({
+      name: this.getAttr(sector, 'edc:regionid', 'unknown'),
+      startAddress: this.getAttr(sector, 'edc:beginaddr', '0x0'),
+      endAddress: this.getAttr(sector, 'edc:endaddr', '0x0'),
+      description: this.getAttr(sector, 'edc:sectiondesc', 'Code section')
+    }));
+  }
+
+  private extractDataMemory(xmlDoc: Document): MemorySection[] {
+    const dataSectors = Array.from(xmlDoc.querySelectorAll('edc\\:SFRDataSector, SFRDataSector'));
+    return dataSectors.map(sector => ({
+      name: `Bank ${this.getAttr(sector, 'edc:bank', '0')}`,
+      startAddress: this.getAttr(sector, 'edc:beginaddr', '0x0'),
+      endAddress: this.getAttr(sector, 'edc:endaddr', '0x0'),
+      description: `SFR Data Bank ${this.getAttr(sector, 'edc:bank', '0')}`
+    }));
+  }
+
+  private extractEepromMemory(xmlDoc: Document): MemorySection[] {
+    const eepromSectors = Array.from(xmlDoc.querySelectorAll('edc\\:EEDataSector, EEDataSector'));
+    return eepromSectors.map(sector => ({
+      name: this.getAttr(sector, 'edc:regionid', 'eedata'),
+      startAddress: this.getAttr(sector, 'edc:beginaddr', '0x2100'),
+      endAddress: this.getAttr(sector, 'edc:endaddr', '0x2200'),
+      description: this.getAttr(sector, 'edc:sectiondesc', 'Data EEPROM')
+    }));
+  }
+
+  private extractConfigMemory(xmlDoc: Document): MemorySection[] {
+    const configSectors = Array.from(xmlDoc.querySelectorAll('edc\\:ConfigFuseSector, ConfigFuseSector'));
+    return configSectors.map(sector => ({
+      name: this.getAttr(sector, 'edc:regionid', '.config'),
+      startAddress: this.getAttr(sector, 'edc:beginaddr', '0x2007'),
+      endAddress: this.getAttr(sector, 'edc:endaddr', '0x2008'),
+      description: 'Configuration Fuses'
+    }));
+  }
+
+  private extractVddSpec(xmlDoc: Document): PowerSpec | undefined {
+    const vddElement = xmlDoc.querySelector('edc\\:VDD, VDD');
+    if (!vddElement) return undefined;
+
+    return {
+      min: parseFloat(this.getAttr(vddElement, 'edc:minvoltage', '0')),
+      max: parseFloat(this.getAttr(vddElement, 'edc:maxvoltage', '0')),
+      nominal: parseFloat(this.getAttr(vddElement, 'edc:nominalvoltage', '0')) || undefined,
+      defaultVoltage: parseFloat(this.getAttr(vddElement, 'edc:maxdefaultvoltage', '0')) || undefined
+    };
+  }
+
+  private extractVppSpec(xmlDoc: Document): PowerSpec | undefined {
+    const vppElement = xmlDoc.querySelector('edc\\:VPP, VPP');
+    if (!vppElement) return undefined;
+
+    return {
+      min: parseFloat(this.getAttr(vppElement, 'edc:minvoltage', '0')),
+      max: parseFloat(this.getAttr(vppElement, 'edc:maxvoltage', '0')),
+      defaultVoltage: parseFloat(this.getAttr(vppElement, 'edc:defaultvoltage', '0')) || undefined
+    };
+  }
+
+  private extractProgrammingSpecs(xmlDoc: Document): ProgrammingSpec[] {
+    const waitTimes = Array.from(xmlDoc.querySelectorAll('edc\\:ProgrammingWaitTime, ProgrammingWaitTime'));
+    const latchSizes = Array.from(xmlDoc.querySelectorAll('edc\\:ProgrammingRowSize, ProgrammingRowSize'));
+    
+    const specs: ProgrammingSpec[] = [];
+    
+    waitTimes.forEach(waitTime => {
+      const operation = this.getAttr(waitTime, 'edc:progop', '');
+      const time = parseInt(this.getAttr(waitTime, 'edc:time', '0'), 10);
+      const timeUnits = this.getAttr(waitTime, 'edc:timeunits', 'us');
+      
+      // Find corresponding latch size
+      const latchSize = latchSizes.find(latch => 
+        this.getAttr(latch, 'edc:progop', '') === operation
+      );
+      const latchSizeNum = latchSize ? parseInt(this.getAttr(latchSize, 'edc:nzsize', '0'), 10) : undefined;
+      
+      specs.push({
+        operation,
+        time,
+        timeUnits,
+        latchSize: latchSizeNum
+      });
+    });
+    
+    return specs;
+  }
+
+  private extractDeviceIdSpec(xmlDoc: Document): DeviceIdSpec | undefined {
+    const deviceIdSector = xmlDoc.querySelector('edc\\:DeviceIDSector, DeviceIDSector');
+    if (!deviceIdSector) return undefined;
+
+    const revisions = Array.from(deviceIdSector.querySelectorAll('edc\\:DEVIDToRev, DEVIDToRev'))
+      .map(rev => ({
+        value: this.getAttr(rev, 'edc:value', ''),
+        revisions: this.getAttr(rev, 'edc:revlist', '')
+      }));
+
+    return {
+      address: this.getAttr(deviceIdSector, 'edc:beginaddr', '0x2006'),
+      mask: this.getAttr(deviceIdSector, 'edc:mask', '0x3fe0'),
+      value: this.getAttr(deviceIdSector, 'edc:value', '0xe00'),
+      revisions: revisions.length > 0 ? revisions : undefined
+    };
+  }
+
+  private extractDebugInfo(xmlDoc: Document): DebugInfo | undefined {
+    const breakpointsElement = xmlDoc.querySelector('edc\\:Breakpoints, Breakpoints');
+    if (!breakpointsElement) return undefined;
+
+    return {
+      hardwareBreakpoints: parseInt(this.getAttr(breakpointsElement, 'edc:hwbpcount', '0'), 10),
+      hasDataCapture: this.getAttr(breakpointsElement, 'edc:hasdatacapture', 'false') === 'true'
+    };
+  }
+
+  private extractSfrSpecs(xmlDoc: Document): SfrSpec[] {
+    const sfrElements = Array.from(xmlDoc.querySelectorAll('edc\\:SFRDef, SFRDef'));
+    
+    return sfrElements.map(sfr => { // No limit - extract all SFRs
+      const fields = Array.from(sfr.querySelectorAll('edc\\:SFRFieldDef, SFRFieldDef'))
+        .map(field => ({
+          name: this.getAttr(field, 'edc:cname', 'unknown'),
+          bits: this.calculateSfrFieldBits(field),
+          description: this.getAttr(field, 'edc:desc', ''),
+          access: this.getAttr(field, 'edc:access', 'rw')
+        }));
+
+      return {
+        name: this.getAttr(sfr, 'edc:cname', 'unknown'),
+        address: this.getAttr(sfr, 'edc:_addr', '0x0'),
+        description: this.getAttr(sfr, 'edc:desc', ''),
+        access: this.getAttr(sfr, 'edc:access', '--------'),
+        resetValue: this.getAttr(sfr, 'edc:por', '00000000'),
+        fields: fields.length > 0 ? fields : undefined
+      };
+    });
+  }
+
+  private calculateSfrFieldBits(fieldElement: Element): string {
+    const mask = this.getAttr(fieldElement, 'edc:mask', '0x1');
+    const maskValue = parseInt(mask, 16);
+    
+    if (maskValue === 0) return '0';
+    
+    // Find the bit positions from the mask
+    const bits: number[] = [];
+    for (let i = 0; i < 8; i++) {
+      if ((maskValue >> i) & 1) {
+        bits.push(i);
+      }
+    }
+    
+    if (bits.length === 1) {
+      return bits[0].toString();
+    } else if (bits.length > 1 && bits.every((bit, index) => index === 0 || bit === bits[index - 1] + 1)) {
+      // Consecutive bits
+      return `${bits[0]}-${bits[bits.length - 1]}`;
+    } else {
+      // Non-consecutive bits
+      return bits.join(',');
+    }
   }
 }

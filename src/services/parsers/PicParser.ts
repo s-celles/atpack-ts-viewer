@@ -193,6 +193,7 @@ export class PicParser extends BaseParser {
     const configs: FuseConfig[] = [];
     
     const dcrDefs = xmlDoc.querySelectorAll('edc\\:DCRDef, DCRDef');
+    console.log(`Found ${dcrDefs.length} DCRDef elements`);
     
     dcrDefs.forEach(dcrDef => {
       const name = this.getAttr(dcrDef, 'edc:cname') || this.getAttr(dcrDef, 'edc:name') || 'CONFIG';
@@ -201,7 +202,13 @@ export class PicParser extends BaseParser {
       const impl = this.getAttrHex(dcrDef, 'edc:impl');
       const nzWidth = this.getAttrHex(dcrDef, 'edc:nzwidth');
       
-      const bitfields = this.extractConfigFields(dcrDef);
+      console.log(`Processing DCRDef: ${name} at addr=0x${(addr || 0).toString(16)}`);
+      
+      // Find the DCRMode (usually DS.0) that contains the actual field definitions
+      const dcrMode = dcrDef.querySelector('edc\\:DCRModeList edc\\:DCRMode, DCRModeList DCRMode');
+      const bitfields = dcrMode ? this.extractConfigFields(dcrMode) : [];
+      
+      console.log(`  Found ${bitfields.length} bitfields for ${name}`);
       
       configs.push({
         name,
@@ -222,34 +229,48 @@ export class PicParser extends BaseParser {
   private extractConfigFields(dcrDef: Element): FuseBitfield[] {
     const bitfields: FuseBitfield[] = [];
     
-    const fieldDefs = dcrDef.querySelectorAll('edc\\:DCRFieldDef, DCRFieldDef');
+    // Process all child nodes in order to handle AdjustPoint elements
+    const childNodes = Array.from(dcrDef.childNodes).filter(node => 
+      node.nodeType === Node.ELEMENT_NODE
+    ) as Element[];
     
-    fieldDefs.forEach(fieldDef => {
-      const name = this.getAttr(fieldDef, 'edc:cname') || this.getAttr(fieldDef, 'edc:name') || '';
-      const desc = this.getAttr(fieldDef, 'edc:desc', '');
-      const mask = this.getAttrHex(fieldDef, 'edc:mask');
-      const nzWidth = this.getAttrHex(fieldDef, 'edc:nzwidth');
+    let currentBitOffset = 0;
+    
+    for (const child of childNodes) {
+      const tagName = child.tagName || child.nodeName;
       
-      if (mask && nzWidth) {
-        // Calculate bit offset from mask
-        let bitOffset = 0;
-        let tempMask = mask;
-        while (tempMask && !(tempMask & 1)) {
-          bitOffset++;
-          tempMask >>= 1;
+      if (tagName === 'edc:AdjustPoint' || tagName === 'AdjustPoint') {
+        // Handle bit offset adjustments
+        const offset = this.getAttrHex(child, 'edc:offset');
+        if (offset !== undefined) {
+          currentBitOffset += offset;
+          console.log(`  AdjustPoint: offset=${offset}, new currentBitOffset=${currentBitOffset}`);
         }
+      } else if (tagName === 'edc:DCRFieldDef' || tagName === 'DCRFieldDef') {
+        // Handle field definitions
+        const name = this.getAttr(child, 'edc:cname') || this.getAttr(child, 'edc:name') || '';
+        const desc = this.getAttr(child, 'edc:desc', '');
+        const mask = this.getAttrHex(child, 'edc:mask');
+        const nzWidth = this.getAttrHex(child, 'edc:nzwidth');
         
-        const values = this.extractFieldValues(fieldDef);
-        
-        bitfields.push({
-          name,
-          description: desc,
-          bitOffset,
-          bitWidth: nzWidth,
-          values
-        });
+        if (mask && nzWidth) {
+          const values = this.extractFieldValues(child);
+          
+          console.log(`  Field: ${name} at bit ${currentBitOffset}, width=${nzWidth}, mask=0x${mask.toString(16)}`);
+          
+          bitfields.push({
+            name,
+            description: desc,
+            bitOffset: currentBitOffset,
+            bitWidth: nzWidth,
+            values
+          });
+          
+          // Move to next bit position after this field
+          currentBitOffset += nzWidth;
+        }
       }
-    });
+    }
     
     return bitfields;
   }

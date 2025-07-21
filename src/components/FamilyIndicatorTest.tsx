@@ -13,9 +13,9 @@ const getFamilyEmoji = (family?: DeviceFamilyType) => {
   
   switch (family) {
     case DeviceFamily.ATMEL:
-      return '🟢';
+      return '🔵'; // Blue circle for ATMEL (#3676c4 according encycolorpedia.com)
     case DeviceFamily.PIC:
-      return '🔵';
+      return '🔴'; // Red circle for Microchip/PIC (#ee2223 according encycolorpedia.com)
     case DeviceFamily.UNSUPPORTED:
       return '⚪';
     default:
@@ -30,7 +30,7 @@ const getFamilyTitle = (family?: DeviceFamilyType) => {
     case DeviceFamily.ATMEL:
       return 'ATMEL Microcontroller';
     case DeviceFamily.PIC:
-      return 'PIC Microcontroller';
+      return 'Microchip PIC Microcontroller';
     case DeviceFamily.UNSUPPORTED:
       return 'Unsupported Family';
     default:
@@ -85,8 +85,8 @@ export const FamilyIndicatorTest: React.FC = () => {
       <div style={{ marginTop: '15px', fontSize: '12px', color: '#666' }}>
         <p><strong>Legend:</strong></p>
         <ul style={{ margin: '5px 0', paddingLeft: '20px' }}>
-          <li>🟢 ATMEL Microcontrollers (Atmel/Microchip ATMEL)</li>
-          <li>🔵 PIC Microcontrollers (Microchip PIC)</li>
+          <li>� ATMEL Microcontrollers (Atmel brand color #3676c4)</li>
+          <li>� PIC Microcontrollers (Microchip brand color #ee2223)</li>
           <li>⚪ Unsupported Family</li>
           <li>❓ Unknown/Undefined Family</li>
         </ul>

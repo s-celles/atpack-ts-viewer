@@ -1,42 +1,13 @@
 import React from 'react';
 import { DeviceFamily } from '../types/atpack';
 import type { DeviceFamilyType } from '../types/atpack';
+import { getFamilyEmoji, getFamilyTitle } from '../utils/familyDisplay';
 
 interface FamilyIndicatorProps {
   deviceFamily?: DeviceFamilyType;
   deviceName: string;
   size?: 'small' | 'medium' | 'large';
 }
-
-const getFamilyEmoji = (family?: DeviceFamilyType) => {
-  if (!family) return '❓';
-  
-  switch (family) {
-    case DeviceFamily.ATMEL:
-      return '🔵'; // Blue circle for ATMEL (#3676c4 according encycolorpedia.com)
-    case DeviceFamily.PIC:
-      return '🔴'; // Red circle for Microchip/PIC (#ee2223 according encycolorpedia.com)
-    case DeviceFamily.UNSUPPORTED:
-      return '⚪';
-    default:
-      return '❓';
-  }
-};
-
-const getFamilyTitle = (family?: DeviceFamilyType) => {
-  if (!family) return 'Unknown Family';
-  
-  switch (family) {
-    case DeviceFamily.ATMEL:
-      return 'ATMEL Microcontroller';
-    case DeviceFamily.PIC:
-      return 'Microchip PIC Microcontroller';
-    case DeviceFamily.UNSUPPORTED:
-      return 'Unsupported Family';
-    default:
-      return 'Unknown Family';
-  }
-};
 
 export const FamilyIndicator: React.FC<FamilyIndicatorProps> = ({ 
   deviceFamily, 
@@ -85,10 +56,10 @@ export const FamilyIndicatorTest: React.FC = () => {
       <div style={{ marginTop: '15px', fontSize: '12px', color: '#666' }}>
         <p><strong>Legend:</strong></p>
         <ul style={{ margin: '5px 0', paddingLeft: '20px' }}>
-          <li>🔵 ATMEL Microcontrollers (Atmel brand color #3676c4)</li>
-          <li>🔴 PIC Microcontrollers (Microchip brand color #ee2223)</li>
-          <li>⚪ Unsupported Family</li>
-          <li>❓ Unknown/Undefined Family</li>
+          <li>{getFamilyEmoji(DeviceFamily.ATMEL)} ATMEL Microcontrollers (Atmel brand color #3676c4)</li>
+          <li>{getFamilyEmoji(DeviceFamily.PIC)} PIC Microcontrollers (Microchip brand color #ee2223)</li>
+          <li>{getFamilyEmoji(DeviceFamily.UNSUPPORTED)} Unsupported Family</li>
+          <li>{getFamilyEmoji(undefined)} Unknown/Undefined Family</li>
         </ul>
       </div>
     </div>

@@ -8,6 +8,20 @@ import { PeripheralRegisters } from './PeripheralRegisters';
 import { PinoutViewer } from './PinoutViewer';
 import { TimerConfigurator } from './TimerConfigurator';
 
+// Import the family emoji function for consistent brand colors
+const getFamilyEmoji = (family?: string) => {
+  switch (family) {
+    case DeviceFamily.ATMEL:
+      return '🔵'; // Blue circle for ATMEL (#3676c4)
+    case DeviceFamily.PIC:
+      return '🔴'; // Red circle for Microchip/PIC (#ee2223)
+    case DeviceFamily.UNSUPPORTED:
+      return '⚪';
+    default:
+      return '❓';
+  }
+};
+
 interface DeviceDetailsProps {
   device: AtPackDevice;
   filters: DeviceDisplayFilters;
@@ -31,10 +45,8 @@ export const DeviceDetails: React.FC<DeviceDetailsProps> = ({ device, filters })
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
               <strong>{device.name}</strong>
               {device.deviceFamily && (
-                <span style={{ fontSize: '16px' }} title={`Device Family: ${device.deviceFamily === DeviceFamily.ATMEL ? 'ATMEL' : device.deviceFamily}`}>
-                  {device.deviceFamily === DeviceFamily.ATMEL ? '🟢' : 
-                   device.deviceFamily === DeviceFamily.PIC ? '🔵' : 
-                   '⚪'}
+                <span style={{ fontSize: '16px' }} title={`Device Family: ${device.deviceFamily === DeviceFamily.ATMEL ? 'ATMEL Microcontroller' : device.deviceFamily === DeviceFamily.PIC ? 'Microchip PIC Microcontroller' : device.deviceFamily}`}>
+                  {getFamilyEmoji(device.deviceFamily)}
                 </span>
               )}
             </div>

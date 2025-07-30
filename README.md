@@ -157,3 +157,10 @@ AtPack data files are copyrighted by Atmel/Microchip and are available on the fo
 
 - https://packs.download.microchip.com/
 - http://packs.download.atmel.com/
+
+## Others related projects
+
+atpack-python-parser - A Python library for parsing AtPack files with CLI (command line interface), interactive mode and TUI (terminal user interface)
+
+- Code https://github.com/s-celles/atpack-python-parser
+- Documentation https://s-celles.github.io/atpack-python-parser/

@@ -1,4 +1,6 @@
-# AtPack viewer
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/s-celles/atpack-ts-viewer)
+
+# AtPack TypeScript viewer
 
 Atmel/Microchip's AtPack parser/viewer, developed with React, TypeScript, Vite, Tailwind CSS, Zustand...
 
